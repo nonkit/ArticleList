@@ -1,0 +1,12 @@
+''' Blog.frm.sb - form definition for MSDN Blog Article List 0.1
+''' Copyright © 2016 Nonki Takahashi.  The MIT License.
+' func=form;bg=LightGray;gx=10;gy=10;gw=598;gh=428;title=MSDN Blog Article List 0.1;
+' func=text;text=Blog;x=10;y=15;bc=Black;fn=Segoe UI;fs=12;fb=True;fi=False;
+' func=text;text=Tag;x=10;y=45;bc=Black;fn=Segoe UI;fs=12;fb=True;fi=False;
+' func=text;text=Output;x=210;y=15;bc=Black;fn=Segoe UI;fs=12;fb=True;fi=False;
+' func=text;id=articles;text=0 articles;x=210;y=45;bc=Black;fn=Segoe UI;fs=12;fb=True;fi=False;
+' func=tbox;id=blog;x=50;y=12;width=140;height=22;bc=Black;fn=Segoe UI;fs=12;fb=True;fi=False;text=user_ed;
+' func=tbox;id=tag;x=50;y=42;width=140;height=22;bc=Black;fn=Segoe UI;fs=12;fb=True;fi=False;text=Small Basic;
+' func=tbox;id=output;x=255;y=12;width=140;height=22;bc=Black;fn=Segoe UI;fs=12;fb=True;fi=False;text=UserEdArticleList.html;
+' func=btn;caption=OK;x=410;y=10;width=28;height=26;bc=Black;fn=Segoe UI;fs=12;fb=True;fi=False;
+' func=mtbox;id=log;x=10;y=72;width=578;height=346;bc=Black;fn=Courier New;fs=12;fb=True;fi=False;
