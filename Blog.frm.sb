@@ -1,8 +1,8 @@
 ' Blog.frm.sb - form definition for MSDN Blog Article List
-' Version 0.2
+' Version 0.3
 ' Copyright © 2016-2017 Nonki Takahashi.  The MIT License.
-' Program ID SHP804-0
-' func=form;bg=LightGray;gx=10;gy=10;gw=598;gh=428;title=MSDN Blog Article List 0.2;
+' Program ID SHP804-1
+' func=form;bg=LightGray;gx=10;gy=10;gw=598;gh=428;title=MSDN Blog Article List 0.3;
 ' func=text;text=Blog;x=10;y=15;bc=Black;fn=Segoe UI;fs=12;fb=True;fi=False;
 ' func=text;text=Tag;x=10;y=45;bc=Black;fn=Segoe UI;fs=12;fb=True;fi=False;
 ' func=text;text=Output;x=210;y=15;bc=Black;fn=Segoe UI;fs=12;fb=True;fi=False;
