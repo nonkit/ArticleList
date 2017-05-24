@@ -1,12 +1,14 @@
-' Google Blog Article List 0.2
+' Google Blog Article List 0.3
 ' Copyright © 2014 Nonki Takahashi.  The MIT License.
-' Last update 2014-11-18
+' Last update 2014-12-30
+' Program ID PLT187
 '
-TextWindow.Title = "Google Blog Article List 0.2"
+TextWindow.Title = "Google Blog Article List 0.3"
 Not = "False=True;True=False;"
 site = "http://nonkit.blogspot.jp/"
 eob = "False" ' end of blog
 first = "True"
+nArticle = 0
 stdout = Program.Directory + "/list.html"
 File.WriteContents(stdout,"<!DOCTYPE html>")
 File.AppendContents(stdout,"<html lang='en'>")
@@ -16,18 +18,38 @@ File.AppendContents(stdout,"<title>Nonkit Blog - Table of Contents</title>")
 File.AppendContents(stdout,"</head>")
 File.AppendContents(stdout,"<body>")
 While Not[eob]
+  TextWindow.WriteLine(site)
   buf = Network.GetWebPageContents(site)
+  pNotFound = Text.GetLength(buf) + 1
   p = 1
   eod = "False"
   While Not[eod]
     param = "tag=h2;class=date-header;"
     FindTag()
-    foundH2 = "True"
-    If tag = "" Then
-      foundH2 = "False"
-    Else
+    pH2 = pNotFound
+    If tag <> "" Then
+      pH2 = p
+      tagH2 = tag
+    EndIf
+    p = pSave
+    param = "tag=h3;class=post-title entry-title;"
+    FindTag()
+    pH3 = pNotFound
+    If tag <> "" Then
+      pH3 = p
+      tagH3 = tag
+    EndIf
+    p = pSave
+    If pH2 < pNotFound And pH3 < pNotFound Then
+      If pH2 < pH3 Then
+        pH3 = pNotFound
+      ElseIf pH3 < pH2 Then
+        pH2 = pNotFound
+      EndIf
+    EndIf
+    If pH2 < pNotFound Then
+      tag = tagH2
       bufSave = buf
-      pSave2 = p
       p = 1
       buf = tag
       param = "tag=span;"
@@ -40,26 +62,21 @@ While Not[eob]
       EndIf
       File.AppendContents(stdout, "<p>" + txt + "</p><ul>")
       buf = bufSave
-      p = pSave2
-    EndIf
-    param = "tag=h3;class=post-title entry-title;"
-    FindTag()
-    foundH3 = "True"
-    If tag = "" Then
-      foundH3 = "False"
-    Else
+      p = pH2
+    ElseIf pH3 < pNotFound Then
+      tag = tagH3
       bufSave = buf
-      pSave2 = p
       p = 1
       buf = tag
       param = "tag=a;"
       FindTag()
       GetAttrAndText()
       File.AppendContents(stdout, "<li><a href='" + attr["href"] + "'>" + txt + "</a></li>")
+      nArticle = nArticle + 1
       buf = bufSave
-      p = pSave2
+      p = pH3
     EndIf
-    If Not[foundH2] And Not[foundH3] Then
+    If pH2 = pNotFound And pH3 = pNotFound Then
       eod = "True"
     EndIf
   EndWhile
@@ -73,6 +90,7 @@ While Not[eob]
   EndIf
 EndWhile
 File.AppendContents(stdout, "</ul>")
+File.AppendContents(stdout, "<p>Total " + nArticle + " articles.</p>")
 File.AppendContents(stdout, "</body>")
 File.AppendContents(stdout, "</html>")
 Sub FindTag
@@ -160,4 +178,3 @@ Sub GetAttrAndText
     EndIf  
   EndWhile
 EndSub
-        
