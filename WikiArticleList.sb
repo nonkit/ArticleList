@@ -1,11 +1,12 @@
-' TechNet Wiki Article List 0.1
+' TechNet Wiki Article List 0.11
 ' Copyright © 2015 Nonki Takahashi.  The MIT License.
 ' Last update 2015-02-10
+' Program ID WWJ884-0
 '
-TextWindow.Title = "TechNet Wiki Article List 0.1"
+TextWindow.Title = "TechNet Wiki Article List 0.11"
 Not = "False=True;True=False;"
 root = "http://social.technet.microsoft.com"
-tags = "Visual+Basic"
+tags = "Small+Basic"
 url = root + "/wiki/contents/articles/tags/" + tags + "/default.aspx"
 site = url
 qt = Text.GetCharacter(34)
