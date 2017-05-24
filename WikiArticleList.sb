@@ -1,31 +1,32 @@
-' TechNet Wiki Article List 0.2
+' TechNet Wiki Article List 0.21
 ' Copyright © 2015 Nonki Takahashi.  The MIT License.
-' Last update 2015-02-11
-' Program ID WWJ884-1
+' Last update 2015-02-12
+' Program ID WWJ884-2
 '
-TextWindow.Title = "TechNet Wiki Article List 0.2"
+TextWindow.Title = "TechNet Wiki Article List 0.21"
 Not = "False=True;True=False;"
 qt = Text.GetCharacter(34)
+LT = "<"
 root = "http://social.technet.microsoft.com"
 tags = "1=Small Basic;"
 tags = "1=BASIC;2=VB;3=VB.NET;4=VB.Net 2008;5=vb.net 2012;6=VB2013;7=visual basic;8=visual basic.net;9=visual basic 10;10=visual basic 2010;"
 nArticle = 0
 stdout = Program.Directory + "/list.html"
-File.WriteContents(stdout, "<!DOCTYPE html>")
-File.AppendContents(stdout, "<html lang=" + qt + "en" + qt + ">")
-File.AppendContents(stdout, "<head>")
-File.AppendContents(stdout, "<meta charset=" + qt + "UTF-8" + qt + ">")
-File.AppendContents(stdout, "<title>TechNet Wiki Article List</title>")
-File.AppendContents(stdout, "</head>")
-File.AppendContents(stdout, "<body>")
-File.AppendContents(stdout, "<p>TechNet Wiki Article List - " + Clock.Date + "</p>")
-File.AppendContents(stdout, "<table>")
-File.AppendContents(stdout, "<tr>")
-File.AppendContents(stdout, "<td>TITLE</td>")
-File.AppendContents(stdout, "<td>LAST REVISION BY</td>")
-File.AppendContents(stdout, "<td>CREATION DATE</td>")
-File.AppendContents(stdout, "<td>TAGS</td>")
-File.AppendContents(stdout, "</tr>")
+File.WriteContents(stdout, LT + "!DOCTYPE html>")
+File.AppendContents(stdout, LT + "html lang=" + qt + "en" + qt + ">")
+File.AppendContents(stdout, LT + "head>")
+File.AppendContents(stdout, LT + "meta charset=" + qt + "UTF-8" + qt + ">")
+File.AppendContents(stdout, LT + "title>TechNet Wiki Article List" + LT + "/title>")
+File.AppendContents(stdout, LT + "/head>")
+File.AppendContents(stdout, LT + "body>")
+File.AppendContents(stdout, LT + "p>TechNet Wiki Article List - " + Clock.Date + LT + "/p>")
+File.AppendContents(stdout, LT + "table>")
+File.AppendContents(stdout, LT + "tr>")
+File.AppendContents(stdout, LT + "td>TITLE</td>")
+File.AppendContents(stdout, LT + "td>LAST REVISION BY" + LT + "/td>")
+File.AppendContents(stdout, LT + "td>CREATION DATE" + LT + "/td>")
+File.AppendContents(stdout, LT + "td>TAGS" + LT + "/td>")
+File.AppendContents(stdout, LT + "/tr>")
 nTag = Array.GetItemCount(tags)
 For iTag = 1 To nTag
   eob = "False" ' end of blog
@@ -46,7 +47,7 @@ For iTag = 1 To nTag
       If tag = "" Then
         eod = "True"
       Else
-        File.AppendContents(stdout,"<tr>")
+        File.AppendContents(stdout, LT + "tr>")
         bufSave = buf
         pH4 = p
         p = 1
@@ -54,27 +55,27 @@ For iTag = 1 To nTag
         param = "tag=a;"
         FindTag()
         GetAttrAndText()
-        File.AppendContents(stdout, "<td><a href=" + qt + attr["href"] + qt + ">" + txt + "</a></td>")
+        File.AppendContents(stdout, LT + "td>" + LT + "a href=" + qt + attr["href"] + qt + ">" + txt + LT + "/a>" + LT + "/td>")
         nArticle = nArticle + 1
         buf = bufSave
         p = pH4
         param = "tag=a;class=internal-link view-user-profile;"
         FindTag()
         If tag = "" Then
-          File.AppendContents(stdout, "<td> </td>")
-          File.AppendContents(stdout, "<td> </td>")
-          File.AppendContents(stdout, "<td> </td>")
-          File.AppendContents(stdout, "</tr>")
+          File.AppendContents(stdout, LT + "td> " + LT + "/td>")
+          File.AppendContents(stdout, LT + "td> " + LT + "/td>")
+          File.AppendContents(stdout, LT + "td> " + LT + "/td>")
+          File.AppendContents(stdout, LT + "/tr>")
           eod = "True"
         Else
           GetAttrAndText()
-          File.AppendContents(stdout, "<td><a href="+ qt + root + attr["href"] + qt + ">" + txt + "</a></td>")
+          File.AppendContents(stdout, LT + "td>" + LT + "a href="+ qt + root + attr["href"] + qt + ">" + txt + "" + LT + "/a>" + LT + "/td>")
           param = "tag=div;class=post-date;"
           FindTag()
           If tag = "" Then
-            File.AppendContents(stdout, "<td> </td>")
-            File.AppendContents(stdout, "<td> </td>")
-            File.AppendContents(stdout, "</tr>")
+            File.AppendContents(stdout, LT + "td> " + LT + "/td>")
+            File.AppendContents(stdout, LT + "td> " + LT + "/td>")
+            File.AppendContents(stdout, LT + "/tr>")
             eod = "True"
           Else
             pDiv = p
@@ -84,9 +85,9 @@ For iTag = 1 To nTag
             param = "tag=span;class=value;"
             FindTag()
             GetAttrAndText()
-            File.AppendContents(stdout, "<td>" + txt + "</td>")
-            File.AppendContents(stdout, "<td>" + tags[iTag] + "</td>")
-            File.AppendContents(stdout, "</tr>")
+            File.AppendContents(stdout, LT + "td>" + txt + LT + "/td>")
+            File.AppendContents(stdout, LT + "td>" + tags[iTag] + LT + "/td>")
+            File.AppendContents(stdout, LT + "/tr>")
             buf = bufSave
             p = pDiv
           EndIf
@@ -111,10 +112,10 @@ For iTag = 1 To nTag
     EndIf
   EndWhile
 EndFor
-File.AppendContents(stdout, "</table>")
-File.AppendContents(stdout, "<p>Total " + nArticle + " articles.</p>")
-File.AppendContents(stdout, "</body>")
-File.AppendContents(stdout, "</html>")
+File.AppendContents(stdout, LT + "/table>")
+File.AppendContents(stdout, LT + "p>Total " + nArticle + " articles." + LT + "/p>")
+File.AppendContents(stdout, LT + "/body>")
+File.AppendContents(stdout, LT + "/html>")
 TextWindow.WriteLine("Total " + nArticle + " articles.")
 Sub EncodeTag
   ' param tags - array for tags
@@ -155,7 +156,7 @@ Sub FindTag
   findNext = "True"
   While findNext
     findNext = "False"        ' tag may be not found
-    pTag = Text.GetIndexOf(Text.GetSubTextToEnd(buf, p), "<" + param["tag"])
+    pTag = Text.GetIndexOf(Text.GetSubTextToEnd(buf, p), LT + param["tag"])
     If 0 < pTag Then
       lTag = Text.GetLength(param["tag"]) + 1
       pTag = p + pTag - 1
@@ -212,7 +213,7 @@ Sub GetAttrAndText
   len = Text.GetLength(tag)
   txt = ""
   While pTag <= len
-    pL = Text.GetIndexOf(Text.GetSubTextToEnd(tag, pTag), "<")
+    pL = Text.GetIndexOf(Text.GetSubTextToEnd(tag, pTag), LT)
     If pL = 0 Then
       txt = Text.Append(txt, Text.GetSubTextToEnd(tag, pTag))
       pTag = len + 1
