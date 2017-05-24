@@ -1,11 +1,20 @@
-' Google Blog Article List 0.1
+' Google Blog Article List 0.2
 ' Copyright © 2014 Nonki Takahashi.  The MIT License.
 ' Last update 2014-11-18
 '
-TextWindow.Title = "Google Blog Article List 0.1"
+TextWindow.Title = "Google Blog Article List 0.2"
 Not = "False=True;True=False;"
 site = "http://nonkit.blogspot.jp/"
 eob = "False" ' end of blog
+first = "True"
+stdout = Program.Directory + "/list.html"
+File.WriteContents(stdout,"<!DOCTYPE html>")
+File.AppendContents(stdout,"<html lang='en'>")
+File.AppendContents(stdout,"<head>")
+File.AppendContents(stdout,"<meta charset='UTF-8'>")
+File.AppendContents(stdout,"<title>Nonkit Blog - Table of Contents</title>")
+File.AppendContents(stdout,"</head>")
+File.AppendContents(stdout,"<body>")
 While Not[eob]
   buf = Network.GetWebPageContents(site)
   p = 1
@@ -24,8 +33,12 @@ While Not[eob]
       param = "tag=span;"
       FindTag()
       GetAttrAndText()
-      TextWindow.WriteLine("")
-      TextWindow.WriteLine("date  | " + txt)
+      If first Then
+        first = "False"
+      Else
+        File.AppendContents(stdout, "</ul>")
+      EndIf
+      File.AppendContents(stdout, "<p>" + txt + "</p><ul>")
       buf = bufSave
       p = pSave2
     EndIf
@@ -42,8 +55,7 @@ While Not[eob]
       param = "tag=a;"
       FindTag()
       GetAttrAndText()
-      TextWindow.WriteLine("url   | " + attr["href"])
-      TextWindow.WriteLine("title | " + txt)
+      File.AppendContents(stdout, "<li><a href='" + attr["href"] + "'>" + txt + "</a></li>")
       buf = bufSave
       p = pSave2
     EndIf
@@ -60,7 +72,9 @@ While Not[eob]
     site = attr["href"]
   EndIf
 EndWhile
-TextWindow.WriteLine("")
+File.AppendContents(stdout, "</ul>")
+File.AppendContents(stdout, "</body>")
+File.AppendContents(stdout, "</html>")
 Sub FindTag
   ' find tag from html buffer
   ' param["tag"] - tag name
@@ -124,6 +138,9 @@ Sub GetAttrAndText
       pTag = pEnd + 1
     EndIf
   EndWhile
+  If pEnd + 1 < pTag Then
+    pTag = pEnd + 1
+  EndIf
   len = Text.GetLength(tag)
   txt = ""
   While pTag <= len
@@ -143,3 +160,4 @@ Sub GetAttrAndText
     EndIf  
   EndWhile
 EndSub
+        
