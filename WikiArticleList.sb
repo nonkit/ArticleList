@@ -1,112 +1,148 @@
-' TechNet Wiki Article List 0.11
+' TechNet Wiki Article List 0.2
 ' Copyright © 2015 Nonki Takahashi.  The MIT License.
-' Last update 2015-02-10
-' Program ID WWJ884-0
+' Last update 2015-02-11
+' Program ID WWJ884-1
 '
-TextWindow.Title = "TechNet Wiki Article List 0.11"
+TextWindow.Title = "TechNet Wiki Article List 0.2"
 Not = "False=True;True=False;"
-root = "http://social.technet.microsoft.com"
-tags = "Small+Basic"
-url = root + "/wiki/contents/articles/tags/" + tags + "/default.aspx"
-site = url
 qt = Text.GetCharacter(34)
-eob = "False" ' end of blog
-first = "True"
+root = "http://social.technet.microsoft.com"
+tags = "1=Small Basic;"
+tags = "1=BASIC;2=VB;3=VB.NET;4=VB.Net 2008;5=vb.net 2012;6=VB2013;7=visual basic;8=visual basic.net;9=visual basic 10;10=visual basic 2010;"
 nArticle = 0
 stdout = Program.Directory + "/list.html"
 File.WriteContents(stdout, "<!DOCTYPE html>")
 File.AppendContents(stdout, "<html lang=" + qt + "en" + qt + ">")
 File.AppendContents(stdout, "<head>")
 File.AppendContents(stdout, "<meta charset=" + qt + "UTF-8" + qt + ">")
-File.AppendContents(stdout, "<title>TechNet Wiki - " + tags + " - Table of Contents</title>")
+File.AppendContents(stdout, "<title>TechNet Wiki Article List</title>")
 File.AppendContents(stdout, "</head>")
 File.AppendContents(stdout, "<body>")
-File.AppendContents(stdout, "<p>TechNet Wiki Articles tagged as " + tags + "</p>")
+File.AppendContents(stdout, "<p>TechNet Wiki Article List - " + Clock.Date + "</p>")
 File.AppendContents(stdout, "<table>")
 File.AppendContents(stdout, "<tr>")
 File.AppendContents(stdout, "<td>TITLE</td>")
 File.AppendContents(stdout, "<td>LAST REVISION BY</td>")
 File.AppendContents(stdout, "<td>CREATION DATE</td>")
+File.AppendContents(stdout, "<td>TAGS</td>")
 File.AppendContents(stdout, "</tr>")
-pageIndex = 1
-While Not[eob]
-  TextWindow.WriteLine(site)
-  buf = Network.GetWebPageContents(site)
-  pNotFound = Text.GetLength(buf) + 1
-  p = 1
-  eod = "False"
-  While Not[eod]
-    param = "tag=h4;class=post-name;"
-    FindTag()
-    If tag = "" Then
-      eod = "True"
-    Else
-      File.AppendContents(stdout,"<tr>")
-      bufSave = buf
-      pH4 = p
-      p = 1
-      buf = tag
-      param = "tag=a;"
-      FindTag()
-      GetAttrAndText()
-      File.AppendContents(stdout, "<td><a href=" + qt + attr["href"] + qt + ">" + txt + "</a></td>")
-      nArticle = nArticle + 1
-      buf = bufSave
-      p = pH4
-      param = "tag=a;class=internal-link view-user-profile;"
+nTag = Array.GetItemCount(tags)
+For iTag = 1 To nTag
+  eob = "False" ' end of blog
+  EncodeTag()
+  url = root + "/wiki/contents/articles/tags/" + encoded + "/default.aspx"
+  site = url
+  pageIndex = 1
+  pageLast = ""
+  While Not[eob]
+    TextWindow.WriteLine(site)
+    buf = Network.GetWebPageContents(site)
+    pNotFound = Text.GetLength(buf) + 1
+    p = 1
+    eod = "False"
+    While Not[eod]
+      param = "tag=h4;class=post-name;"
       FindTag()
       If tag = "" Then
-        File.AppendContents(stdout, "<td> </td>")
-        File.AppendContents(stdout, "<td> </td>")
-        File.AppendContents(stdout, "</tr>")
         eod = "True"
       Else
+        File.AppendContents(stdout,"<tr>")
+        bufSave = buf
+        pH4 = p
+        p = 1
+        buf = tag
+        param = "tag=a;"
+        FindTag()
         GetAttrAndText()
-        File.AppendContents(stdout, "<td><a href="+ qt + root + attr["href"] + qt + ">" + txt + "</a></td>")
-        param = "tag=div;class=post-date;"
+        File.AppendContents(stdout, "<td><a href=" + qt + attr["href"] + qt + ">" + txt + "</a></td>")
+        nArticle = nArticle + 1
+        buf = bufSave
+        p = pH4
+        param = "tag=a;class=internal-link view-user-profile;"
         FindTag()
         If tag = "" Then
+          File.AppendContents(stdout, "<td> </td>")
+          File.AppendContents(stdout, "<td> </td>")
           File.AppendContents(stdout, "<td> </td>")
           File.AppendContents(stdout, "</tr>")
           eod = "True"
         Else
-          pDiv = p
-          bufSave = buf
-          p = 1
-          buf = tag
-          param = "tag=span;class=value;"
-          FindTag()
           GetAttrAndText()
-          File.AppendContents(stdout, "<td>" + txt + "</td>")
-          File.AppendContents(stdout, "</tr>")
-          buf = bufSave
-          p = pDiv
+          File.AppendContents(stdout, "<td><a href="+ qt + root + attr["href"] + qt + ">" + txt + "</a></td>")
+          param = "tag=div;class=post-date;"
+          FindTag()
+          If tag = "" Then
+            File.AppendContents(stdout, "<td> </td>")
+            File.AppendContents(stdout, "<td> </td>")
+            File.AppendContents(stdout, "</tr>")
+            eod = "True"
+          Else
+            pDiv = p
+            bufSave = buf
+            p = 1
+            buf = tag
+            param = "tag=span;class=value;"
+            FindTag()
+            GetAttrAndText()
+            File.AppendContents(stdout, "<td>" + txt + "</td>")
+            File.AppendContents(stdout, "<td>" + tags[iTag] + "</td>")
+            File.AppendContents(stdout, "</tr>")
+            buf = bufSave
+            p = pDiv
+          EndIf
         EndIf
       EndIf
+    EndWhile
+    pageIndex = pageIndex + 1
+    If pageLast = "" Then
+      param = "tag=span;class=summary;"
+      FindTag()
+      If tag = "" Then
+        eob = "True"
+      Else
+        GetAttrAndText()
+        lenPage = Text.GetIndexOf(Text.GetSubTextToEnd(txt, 11), " ") - 1
+        pageLast = Text.GetSubText(txt, 11, lenPage)
+      EndIf
+    EndIf
+    site = url + "?PageIndex=" + pageIndex
+    If pageLast < pageIndex Then
+      eob = "True"
     EndIf
   EndWhile
-  pageIndex = pageIndex + 1
-  If pageLast = "" Then
-    param = "tag=a;class=last;"
-    FindTag()
-    If tag = "" Then
-      eob = "True"
-    Else
-      GetAttrAndText()
-      pEq = Text.GetIndexOf(attr["href"], "=")
-      pageLast = Text.GetSubTextToEnd(attr["href"], pEq + 1)
-    EndIf
-  EndIf
-  site = url + "?PageIndex=" + pageIndex
-  If pageLast < pageIndex Then
-    eob = "True"
-  EndIf
-EndWhile
+EndFor
 File.AppendContents(stdout, "</table>")
 File.AppendContents(stdout, "<p>Total " + nArticle + " articles.</p>")
 File.AppendContents(stdout, "</body>")
 File.AppendContents(stdout, "</html>")
 TextWindow.WriteLine("Total " + nArticle + " articles.")
+Sub EncodeTag
+  ' param tags - array for tags
+  ' param iTag - index of the array for tags
+  ' return encoded - encoded tag
+  encoded = ""
+  len = Text.GetLength(tags[iTag])
+  For i = 1 To len
+    c = Text.GetSubText(tags[iTag], i, 1)
+    If c = " " Then
+      c = "+"
+    ElseIf c = "." Then
+      c = "-"
+    ElseIf c = "#" Then
+      c = "_2300_"
+    ElseIf c = "+" Then
+      c = "_2B00_"
+    ElseIf c = "-" Then
+      c = "_2D00_"
+    EndIf
+    If Text.EndsWith(encoded, "_") And Text.StartsWith(c, "_") Then
+      l1 = Text.GetLength(encoded) - 1
+      encoded = Text.Append(Text.GetSubText(encoded, 1, l1), Text.GetSubTextToEnd(c, 2))
+    Else
+      encoded = Text.Append(encoded, c)
+    EndIF
+  EndFor
+EndSub
 Sub FindTag
   ' find tag from html buffer
   ' param["tag"] - tag name
