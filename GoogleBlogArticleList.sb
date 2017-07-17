@@ -1,22 +1,24 @@
-' Google Blog Article List 0.3
-' Copyright © 2014 Nonki Takahashi.  The MIT License.
-' Last update 2014-12-30
-' Program ID PLT187
+' Google Blog Article List 0.4
+' Copyright © 2014-2017 Nonki Takahashi.  The MIT License.
+' Last update 2017-07-17
+' Program ID PLT187-0
 '
-TextWindow.Title = "Google Blog Article List 0.3"
+TextWindow.Title = "Google Blog Article List 0.4"
 Not = "False=True;True=False;"
+LT = "<"
 site = "http://nonkit.blogspot.jp/"
 eob = "False" ' end of blog
 first = "True"
 nArticle = 0
 stdout = Program.Directory + "/list.html"
-File.WriteContents(stdout,"<!DOCTYPE html>")
-File.AppendContents(stdout,"<html lang='en'>")
-File.AppendContents(stdout,"<head>")
-File.AppendContents(stdout,"<meta charset='UTF-8'>")
-File.AppendContents(stdout,"<title>Nonkit Blog - Table of Contents</title>")
-File.AppendContents(stdout,"</head>")
-File.AppendContents(stdout,"<body>")
+File.WriteContents(stdout, LT + "!DOCTYPE html>")
+File.AppendContents(stdout, LT + "html lang='en'>")
+File.AppendContents(stdout, LT + "head>")
+File.AppendContents(stdout, LT + "meta charset='UTF-8'>")
+File.AppendContents(stdout, LT + "title>Nonkit Blog - Table of Contents" + LT + "/title>")
+File.AppendContents(stdout, LT + "/head>")
+File.AppendContents(stdout, LT + "body>")
+dateLast = ""
 While Not[eob]
   TextWindow.WriteLine(site)
   buf = Network.GetWebPageContents(site)
@@ -58,9 +60,9 @@ While Not[eob]
       If first Then
         first = "False"
       Else
-        File.AppendContents(stdout, "</ul>")
+        File.AppendContents(stdout, LT + "/ul>")
       EndIf
-      File.AppendContents(stdout, "<p>" + txt + "</p><ul>")
+      File.AppendContents(stdout, LT + "p>" + txt + LT + "/p>" + LT + "ul>")
       buf = bufSave
       p = pH2
     ElseIf pH3 < pNotFound Then
@@ -71,16 +73,30 @@ While Not[eob]
       param = "tag=a;"
       FindTag()
       GetAttrAndText()
-      File.AppendContents(stdout, "<li><a href='" + attr["href"] + "'>" + txt + "</a></li>")
-      nArticle = nArticle + 1
+      href = attr["href"]
+      title = txt
       buf = bufSave
       p = pH3
+      param = "tag=time;"
+      FindTag()
+      GetAttrAndText()
+      date = txt
+      If date <> dateLast Then
+        If dateLast <> "" Then
+          File.AppendContents(stdout, LT + "/ul>")
+        EndIf
+        File.AppendContents(stdout, LT + "p>" + date + LT + "/p>")
+        File.AppendContents(stdout, LT + "ul>")
+        dateLast = date
+      EndIf
+      File.AppendContents(stdout, LT + "li>" + LT + "a href='" + href + "'>" + title + LT + "/a>" + LT + "/li>")
+      nArticle = nArticle + 1
     EndIf
     If pH2 = pNotFound And pH3 = pNotFound Then
       eod = "True"
     EndIf
   EndWhile
-  param = "tag=a;class=blog-pager-older-link;"
+  param = "tag=a;class=blog-pager-older-link flat-button ripple;"
   FindTag()
   If tag = "" Then
     eob = "True"
@@ -89,10 +105,11 @@ While Not[eob]
     site = attr["href"]
   EndIf
 EndWhile
-File.AppendContents(stdout, "</ul>")
-File.AppendContents(stdout, "<p>Total " + nArticle + " articles.</p>")
-File.AppendContents(stdout, "</body>")
-File.AppendContents(stdout, "</html>")
+File.AppendContents(stdout, LT + "/ul>")
+File.AppendContents(stdout, LT + "p>Total " + nArticle + " articles." + LT + "/p>")
+File.AppendContents(stdout, LT + "/body>")
+File.AppendContents(stdout, LT + "/html>")
+
 Sub FindTag
   ' find tag from html buffer
   ' param["tag"] - tag name
@@ -105,7 +122,7 @@ Sub FindTag
   findNext = "True"
   While findNext
     findNext = "False"        ' tag may be not found
-    pTag = Text.GetIndexOf(Text.GetSubTextToEnd(buf, p), "<" + param["tag"])
+    pTag = Text.GetIndexOf(Text.GetSubTextToEnd(buf, p), LT + param["tag"])
     If 0 < pTag Then
       lTag = Text.GetLength(param["tag"]) + 1
       pTag = p + pTag - 1
@@ -132,6 +149,7 @@ Sub FindTag
     p = pSave
   EndIf
 EndSub
+
 Sub GetAttrAndText
   ' get attributes and text from given tag
   ' param tag - given tag
@@ -162,7 +180,7 @@ Sub GetAttrAndText
   len = Text.GetLength(tag)
   txt = ""
   While pTag <= len
-    pL = Text.GetIndexOf(Text.GetSubTextToEnd(tag, pTag), "<")
+    pL = Text.GetIndexOf(Text.GetSubTextToEnd(tag, pTag), LT)
     If pL = 0 Then
       txt = Text.Append(txt, Text.GetSubTextToEnd(tag, pTag))
       pTag = len + 1

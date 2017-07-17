@@ -1,0 +1,10 @@
+# Windows execution files
+*.exe
+*.dll
+*.pdb
+
+# Output files
+*.html
+
+# Debug files
+Graduate
