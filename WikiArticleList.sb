@@ -1,15 +1,15 @@
-' TechNet Wiki Article List 0.21
-' Copyright © 2015 Nonki Takahashi.  The MIT License.
-' Last update 2015-02-12
-' Program ID WWJ884-2
+' TechNet Wiki Article List 0.3
+' Copyright © 2015-2017 Nonki Takahashi.  The MIT License.
+' Last update 2017-09-23
+' Program ID WWJ884-4
 '
-TextWindow.Title = "TechNet Wiki Article List 0.21"
+TextWindow.Title = "TechNet Wiki Article List 0.3"
 Not = "False=True;True=False;"
 qt = Text.GetCharacter(34)
 LT = "<"
-root = "http://social.technet.microsoft.com"
+root = "https://social.technet.microsoft.com"
+tags = "1=BASIC;2=VB;3=VB.NET;4=visual basic;5=visual basic.net;6=VB .NET;7=vba;8=excel vba;9=visual basic 10;10=VB.Net 2008;11=VB2008;12=visual basic 2010;13=vb.net 2012;14=VB2013;15=VB2015;"
 tags = "1=Small Basic;"
-tags = "1=BASIC;2=VB;3=VB.NET;4=VB.Net 2008;5=vb.net 2012;6=VB2013;7=visual basic;8=visual basic.net;9=visual basic 10;10=visual basic 2010;"
 nArticle = 0
 stdout = Program.Directory + "/list.html"
 File.WriteContents(stdout, LT + "!DOCTYPE html>")
