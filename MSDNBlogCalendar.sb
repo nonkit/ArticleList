@@ -1,0 +1,566 @@
+' MSDN Blog Calendar
+' Version 0.1a
+' Copyright © 2018 Nonki  Takahashi.  The MIT License.
+
+' History:
+'  0.1a 2018-03-03 Created.  (NRR644)
+
+' Known Issues:
+'  [1] title including " will break
+'  [2] <a> tag for TOC will not work such in 2009
+'  [3] to year and to month are not implemented yet
+'  [4] will always crawl whole blog
+
+GraphicsWindow.Title = "MSDN Blog Calendar 0.1a"
+Not = "True=False;False=True;"
+AMP = "&"
+CR = Text.GetCharacter(13)
+LF = Text.GetCharacter(10)
+LT = "<"
+SQ = "'"
+WQ = Text.GetCharacter(34)
+Form()
+Cal_Init()
+GetBlogInfo()
+buttonClicked = "False"
+Controls.ButtonClicked = OnButtonClicked
+While "True"
+  If buttonClicked Then
+    CheckInput()
+    iArticle = nArticle
+    If error Then
+      GraphicsWindow.ShowMessage(msg, "Error")
+    Else
+      doy = 0  ' days of year
+      nom = 1  ' number of month
+      buf = ""
+      For m = m0 To m1
+        While nom < m
+          doy = doy + dom[nom]
+          nom = nom + 1
+        EndWhile
+        If Controls.LastClickedButton = btnText Then
+          Cal_PrintMonth()
+        Else
+          Cal_HTMLMonth()
+        EndIf
+      EndFor
+      Controls.SetTextBoxText(tboxCal, buf)
+    EndIf
+    buttonClicked = "False"
+  EndIf
+EndWhile
+
+Sub CheckInput
+  ' return msg - error message
+  ' return error - "True" if error
+  error = "False"
+  ' check year
+  year = Controls.GetTextBoxText(tboxYearFrom)
+  if year = "" Or year < 1 Then
+    msg = "Illeagal Year (" + year + ")"
+    error = "True"
+  Endif
+  If Not[error] Then
+    If Math.Remainder(year, 4) = 0 And Math.Remainder(year, 100) > 0 Or Math.Remainder(year, 400) = 0 Then
+      dom[2] = 29
+    Else
+      dom[2] = 28
+    Endif
+    nol = Math.Floor((year - 1) / 4) - Math.Floor((year - 1) / 100) + Math.Floor((year - 1) / 400)  ' number of leap year
+    woy = Math.Remainder((year + nol), 7)  ' week of year
+    ' check quoter
+    month = Controls.GetTextBoxText(tboxMonthFrom)
+    If Text.StartsWith(Text.ConvertToLowerCase(month), "q") Then
+      quoter = Text.GetSubTextToEnd(month, 2)
+      m0 = (quoter - 1) * 3 + 1
+      m1 = (quoter - 1) * 3 + 3
+    ElseIf Controls.LastClickedButton = btnHTML Then
+      msg = "Enter Q1-Q4 for HTML"
+      error = "True"
+    Else
+      ' check month
+      If month = "" Then
+        m0 = 1
+        m1 = 12
+      Else
+        If month < 1 Or month > 12 Then
+          msg = "Illeagal Month (" + month + ")"
+          error = "True"
+        EndIf
+        m0 = month
+        m1 = month
+      EndIf
+    EndIf
+  EndIf
+EndSub
+
+Sub ConvertTag
+  ' Convert tag for the MSDN blog
+  ' param tagB - tag in the blog
+  ' return tagM - converted tag for the URL
+  tagM = Text.ConvertToLowerCase(tagB)
+  len = Text.GetLength(tagM)
+  For i = 1 To len
+    If Text.GetSubText(tagM, i, 1) = " " Then
+      tagM = Text.GetSubText(tagM, 1, i - 1) + "-" + Text.GetSubTextToEnd(tagM, i + 1)
+    EndIf
+  EndFor
+EndSub
+
+Sub ConvertTitle
+  ' Convert title
+  ' param txt - original title in a tag
+  ' return title - title for HTML
+  len = Text.GetLength(txt)
+  title = ""
+  delim = " " + CR + LF
+  lastDelim = 0
+  For i = 1 To len
+    c = Text.GetSubText(txt, i, 1)
+    If Not[Text.IsSubText(delim, c)] Then
+      s = i
+      i = len ' exit for
+    EndIf
+  EndFor
+  For i = len To 1 Step -1
+    c = Text.GetSubText(txt, i, 1)
+    If Not[Text.IsSubText(delim, c)] Then
+      e = i
+      i = 1 ' exit for
+    EndIf
+  EndFor
+  title = Text.GetSubText(txt, s, e - s + 1)
+EndSub
+
+Sub ConvertText
+  ' Convert &*; to unicode character
+  ' param txt
+  ' return txt
+  While Text.IsSubText(txt, "&") And Text.IsSubText(txt, ";")
+    c = Text.GetIndexOf(txt, "&")
+    l = Text.GetIndexOf(Text.GetSubTextToEnd(txt, c), ";")
+    kw = Text.GetSubText(txt, c + 1, l - 2)
+    If Text.StartsWith(kw, "#") Then
+      txtMid = Text.GetCharacter(Text.GetSubTextToEnd(kw, 2))
+    ElseIf kw = "quot" Then
+      txtMid = Text.GetCharacter(34)
+    Else
+      txtMid = ""
+    EndIf
+    txtLeft = Text.GetSubText(txt, 1, c - 1)
+    txtRight = Text.GetSubTextToEnd(txt, c + l)
+    txt = Text.Append(txtLeft, Text.Append(txtMid, txtRight))
+  EndWhile
+EndSub
+
+Sub FindPost
+  ' param year - to find
+  ' param m - the month to find
+  ' param d - the day to find
+  ' return post - found post
+  post = ""
+  _post = blog[iArticle]
+  If (_post["year"] * 10000 + _post["month"] * 100 + _post["day"]) <= (year * 10000 + m * 100 + d) Then
+    While (1 < iArticle) And ((_post["year"] * 10000 + _post["month"] * 100 + _post["day"]) < (year * 10000 + m * 100 + d))
+      iArticle = iArticle - 1
+      _post = blog[iArticle]
+    EndWhile
+    If (_post["year"] = year) And (_post["month"] = m) And (_post["day"] = d) Then
+      post = _post
+    EndIf
+  EndIf
+EndSub
+
+Sub FindTag
+  ' Find tag from html buffer
+  ' param["tag"] - tag name
+  ' param["class"] - class name
+  ' param["rel"] - rel name
+  ' param p - pointer for buffer
+  ' param buf - html buffer
+  ' return tag - found tag
+  pSave = p
+  tag = ""
+  findNext = "True"
+  While findNext
+    findNext = "False"        ' tag may be not found
+    pTag = Text.GetIndexOf(Text.GetSubTextToEnd(buf, p), LT + param["tag"] + " ")
+    If 0 < pTag Then
+      pTag = p + pTag - 1
+      len = Text.GetIndexOf(Text.GetSubTextToEnd(buf, pTag), "/" + param["tag"] + ">")
+      If 0 < len Then
+        findNext = "True"     ' tag may be different
+        lTag = Text.GetLength(param["tag"]) + 1
+        len = len + lTag
+        tag = Text.GetSubText(buf, pTag, len)
+        Stack.PushValue("local", pTag)
+        GetAttrAndText()
+        pTag = Stack.PopValue("local")
+        If param["class"] <> "" Then
+          target = "class"
+        Else
+          target = "rel"
+        EndIf
+        If param[target] = attr[target] Then
+          findNext = "False"  ' found the tag
+        Else
+          tag = ""
+        EndIf
+        p = pTag + len
+      EndIf
+    EndIf
+  EndWhile
+  If tag = "" Then
+    p = pSave
+  EndIf
+EndSub
+
+Sub Form
+  gw = 598
+  gh = 428
+  GraphicsWindow.Width = gw
+  GraphicsWindow.Height = gh
+  GraphicsWindow.BackgroundColor = "LightGray"
+  GraphicsWindow.BrushColor = "Black"
+  GraphicsWindow.DrawText(7, 9, "Year")
+  tboxYearFrom = Controls.AddTextBox(56, 5)
+  Controls.SetSize(tboxYearFrom, 50, 22)
+  GraphicsWindow.DrawText(110, 9, "-")
+  tboxYearTo = Controls.AddTextBox(120, 5)
+  Controls.SetSize(tboxYearTo, 50, 22)
+  GraphicsWindow.DrawText(7, 37, "Month")
+  tboxMonthFrom = Controls.AddTextBox(56, 32)
+  Controls.SetSize(tboxMonthFrom, 50, 22)
+  GraphicsWindow.DrawText(110, 37, "-")
+  tboxMonthTo = Controls.AddTextBox(120, 32)
+  Controls.SetSize(tboxMonthTo, 50, 22)
+  btnText = Controls.AddButton("Text", 190, 3)
+  btnHTML = Controls.AddButton("HTML", 240, 3)
+  GraphicsWindow.FontName = "Courier New"
+  tboxCal = Controls.AddMultiLineTextBox(5, 59)
+  Controls.SetSize(tboxCal, gw - 10, gh - 64)
+EndSub
+
+Sub GetBlogInfo
+  ' param y0, y1 - year from and to
+  ' param m0, m1 - month from and to
+  auth = "Ed Price - MSFT=Ed;litdev=LitDev;Qazwsxedc Qazwsxedc=Noar Buscher;Nonki Takahashi=Nonki;"
+  boxbuf = ""
+  site = "https://blogs.msdn.microsoft.com"
+  blog = "smallbasic" ' "user_ed"
+  tagB = ""           ' "Small Basic"
+  If tagB <> "" Then
+    ConvertTag()
+    folder = "/" + blog + "/tag/" + tagM + "/"
+  Else
+    folder = "/" + blog + "/"
+  EndIf
+  nPosts = 0
+  maxPage = 1
+  outbuf = ""
+  block = ""
+  nArticle = 0
+  For page = 1 To maxPage
+    If page = 1 Then
+      pg = ""
+    Else
+      pg = "page/" + page + "/"
+    EndIf
+    url = site + folder + pg + "?orderby=date"
+    buf = Network.GetWebPageContents(url)
+    p = 1
+    eod = "False"
+    If page = 1 Then
+      param = "tag=a;class=for-desktop;"
+      FindTag()
+      GetAttrAndText()
+      ConvertTitle()
+      blog["title"] = title
+      blog["tag"] = tagB
+    EndIf
+    While Not[eod]
+      param = "tag=a;rel=bookmark;"
+      FindTag()
+      If tag = "" Then
+        eod = "True"
+      Else
+        GetAttrAndText()
+        ConvertText()
+        post["url"] = attr["href"]
+        post["title"] = txt
+        param = "tag=time;class=entry-date published updated;"
+        FindTag()
+        If tag = "" Then
+          eod = "True"
+        Else
+          GetAttrAndText()
+          post["date"] = txt
+          ParseDate()
+          param = "tag=a;class=url fn n profile-usercard-hover;"
+          FindTag()
+          If tag = "" Then
+            eod = "True"
+          Else
+            GetAttrAndText()
+            post["by"] = txt
+            If Array.ContainsIndex(auth, post["by"]) Then
+              post["by"] = auth[post["by"]]
+            EndIf
+          EndIf
+        EndIf
+        nArticle = nArticle + 1
+        blog[nArticle] = post
+        TextWindow.WriteLine("blog[" + nArticle + "] = " + WQ + post + WQ)
+      EndIf
+    EndWhile
+    If page = 1 Then
+      param = "tag=a;class=page-numbers;"
+      FindTag()
+      While tag <> ""
+        tagSave = tag
+        FindTag()
+      EndWhile
+      tag = tagSave
+      GetAttrAndText()
+      maxPage = txt
+    EndIf
+  EndFor
+EndSub
+
+Sub GetAttrAndText
+  ' Get attributes and text from given tag
+  ' param tag - given tag
+  ' return attr[] - array of attributes in the tag
+  ' return txt - text in the tag
+  pTag = Text.GetIndexOf(tag, " ") + 1
+  pEnd = Text.GetIndexOf(tag, ">")
+  attr = ""
+  While pTag <= pEnd 
+    pEq = Text.GetIndexOf(Text.GetSubTextToEnd(tag, pTag), "=")
+    If 0 < pEq Then
+      pEq = pTag + pEq - 1
+      pQ = Text.GetIndexOf(SQ + WQ, Text.GetSubText(tag, pEq + 1, 1))
+      If 0 < pQ Then
+        Q = Text.GetSubText(SQ + WQ, pQ, 1)
+        pQ = Text.GetIndexOf(Text.GetSubTextToEnd(tag, pEq + 2), Q)
+        If 0 < pQ Then
+          pQ = pEq + 2 + pQ - 1
+          txt = Text.GetSubText(tag, pEq + 2, pQ - pEq - 2)
+          ConvertText()
+          attr[Text.GetSubText(tag, pTag, pEq - pTag)] = txt
+          pTag = pQ + 2
+        EndIf
+      Else ' to avoid hang with no quotes after equal
+        txt = Text.GetSubText(tag, pEq + 2, pEnd - pEq - 2)
+        ConvertText()
+        attr[Text.GetSubText(tag, pTag, pEq - pTag)] = txt
+        pTag = pEnd + 1
+      EndIf
+    Else
+      pTag = pEnd + 1
+    EndIf
+  EndWhile
+  len = Text.GetLength(tag)
+  txt = ""
+  While pTag <= len
+    pL = Text.GetIndexOf(Text.GetSubTextToEnd(tag, pTag), LT)
+    If pL = 0 Then
+      txt = Text.Append(txt, Text.GetSubTextToEnd(tag, pTag))
+      pTag = len + 1
+    Else
+      pL = pTag + pL - 1
+      txt = Text.Append(txt, Text.GetSubText(tag, pTag, pL - pTag))
+      pR = Text.GetIndexOf(Text.GetSubTextToEnd(tag, pTag), ">")
+      If 0 < pR Then
+        pTag = pTag + pR
+      Else
+        pTag = len + 1
+      EndIf
+    EndIf  
+  EndWhile
+EndSub
+
+Sub OnButtonClicked
+  buttonClicked = "True"
+EndSub
+
+Sub ParseDate
+  ' param post["date"]
+  ' return post["year"]
+  ' return post["month"]
+  ' return post["day"]
+  For m = 1 To 12
+    If Text.StartsWith(post["date"], name[m]) Then
+      post["month"] = m
+      m = 12  ' exit For
+    EndIf
+  EndFor
+  len = Text.GetLength(name[post["month"]])
+  comma = Text.GetIndexOf(post["date"], ",")
+  post["day"] = Text.GetSubText(post["date"], len + 2, comma - len - 2)
+  post["year"] = Text.GetSubTextToEnd(post["date"], comma + 2)
+EndSub
+
+Sub Cal_HTMLMonth
+  ' Calender | Print month
+  ' param year - year
+  ' param quoter - quoter
+  ' param m - month
+  ' param m0, m1  - start and end of quoter
+  ' param doy - days of year
+  ' param woy - week of year
+  If buf = "" Then
+    ' header
+    buf = sp[8] + LT + "h1>" + LT + "a name="+ WQ
+    buf = buf + "Q" + quoter + "_" + Text.GetSubTextToEnd(year, 3)
+    buf = buf + WQ + ">" + LT + "/a>Q" + quoter
+    buf = buf + " " + year + LT + "/h1>" + CR + LF
+    buf = buf + sp[8] + LT + "p>Move mouse on an author to show the title "
+    buf = buf + "of the post." + LT + "/p>" + CR + LF
+    buf = buf + sp[8] + LT + "table width=" + WQ + "95%" + WQ
+    buf = buf + " line-height: 18.83px; margin-left: 1px;"
+    buf = buf + " border-collapse: collapse; border=" + WQ + "0" + WQ
+    buf = buf + " cellspacing=" + WQ + "0" + WQ
+    buf = buf + " cellpadding=" + WQ + "0" + WQ + ">" + CR + LF
+    buf = buf + sp[12] + LT + "tbody>" + CR + LF
+    buf = buf + sp[16] + LT + "tr>" + CR + LF
+    buf = buf + sp[20] + LT + "td valign=" + WQ + "top" + WQ
+    buf = buf + " style=" + WQ + "padding: 0in 5.4pt; border: 1pt solid"
+    buf = buf + " windowtext; width: " + c1w + "pt; background-color:"
+    buf = buf + " silver;" + WQ + ">" + CR + LF
+    buf = buf + sp[20] + LT + "strong>Dates:" + LT + "/strong>" + LT
+    buf = buf + "/td>" + CR + LF
+    For i = 1 To 7
+      buf = buf + sp[20] + LT + "td valign=" + WQ + "top" + WQ
+      buf = buf + " style=" + WQ + "border-color: windowtext windowtext"
+      buf = buf + " windowtext silver; padding: 0in 5.4pt; width:"
+      buf = buf + " " + cw[Math.Remainder(i, 7)] + "pt;"
+      buf = buf + " border-top-width: 1pt; border-right-width: 1pt;"
+      buf = buf + " border-bottom-width: 1pt; border-top-style: solid;"
+      buf = buf + " border-right-style: solid; border-bottom-style:"
+      buf = buf + " solid; background-color: silver;" + WQ + ">" + CR + LF
+      buf = buf + sp[20] + LT + "strong>" + week[Math.Remainder(i, 7)]
+      buf = buf + LT + "/strong>" + LT + "/td>" + CR + LF
+    EndFor
+    buf = buf + sp[16] + LT + "/tr>" + CR + LF
+  EndIf
+  w = Math.Remainder((doy + woy), 7)
+  d1 = Math.Remainder(8 - w, 7) + 1 
+  For day = d1 To dom[m] Step 7
+    m2 = m
+    day2 = day + 6
+    If dom[m] < day2 Then
+      m2 = m + 1
+      If 12 < m2 Then
+        m2 = 1
+      EndIf
+      day2 = day2 - dom[m]
+    EndIf
+    buf = buf + sp[16] + LT + "tr>" + CR + LF
+    buf = buf + sp[20] + LT + "td valign=" + WQ + "top" + WQ
+    buf = buf + " style=" + WQ + "border-color: silver windowtext"
+    buf = buf + " windowtext; padding: 0in 5.4pt; width: " + c1w + "pt;"
+    buf = buf + " border-right-width: 1pt; border-bottom-width: 1pt;"
+    buf = buf + " border-left-width: 1pt; border-right-style: solid;"
+    buf = buf + " border-bottom-style: solid; border-left-style:"
+    buf = buf + " solid;" + WQ + ">" + CR + LF
+    buf = buf + sp[20] + m + "/" + day + " - " + m2 + "/" + day2
+    buf = buf + LT + "/td>" + CR + LF
+    d = day
+    For i = 1 To 7
+      buf = buf + sp[20] + LT + "td valign=" + WQ + "top" + WQ
+      buf = buf + " style=" + WQ + "border-color: silver windowtext"
+      buf = buf + " windowtext silver; padding: 0in 5.4pt; width:"
+      buf = buf + " " + cw[Math.Remainder(i, 7)] + "pt;"
+      buf = buf + " border-right-width: 1pt; border-bottom-width: 1pt;"
+      buf = buf + " border-right-style: solid; border-bottom-style:"
+      FindPost()
+      If post <> "" Then
+        buf = buf + " solid;" + WQ + CR + LF
+        buf = buf + sp[20] + "title=" + WQ + post["title"]
+        buf = buf + WQ + ">" + CR + LF
+        buf = buf + sp[20] + LT + "a href=" + WQ + post["url"]
+        buf = buf + WQ + ">" + post["by"] + LT + "/a>" + LT + "/td>" + CR + LF
+      Else
+        buf = buf + " solid;" + WQ + ">" + CR + LF
+        buf = buf + sp[20] + AMP + "nbsp;" + LT + "/td>" + CR + LF
+      EndIf
+      d = d + 1
+      If dom[m] < d Then
+        d = 1
+      EndIf
+    EndFor
+    buf = buf + sp[16] + LT + "/tr>" + CR + LF
+  EndFor
+  If m = m1 Then
+    ' footer
+    buf = buf + sp[12] + LT + "/tbody>" + CR + LF
+    buf = buf + sp[8] + LT + "/table>" + CR + LF
+    buf = buf + sp[8] + LT + "br>" + CR + LF
+  EndIf
+EndSub
+
+Sub Cal_Init
+  ' Calender | Initialize days of month
+  dom = "1=31;2=28;3=31;4=30;5=31;6=30;7=31;8=31;9=30;10=31;11=30;12=31;"
+  name = "1=January;2=February;3=March;4=April;5=May;6=June;7=July;"
+  name = name + "8=August;9=September;10=October;11=November;12=December;"
+  week = "0=Sunday;1=Monday;2=Tuesday;3=Wednesday;4=Thursday;5=Friday;"
+  week = week + "6=Saturday;"
+  c1w = 52
+  c1w = 58.8
+  ' column width [pt] for days of week
+  cw = "1=80;2=71.85;3=82.2;4=80.8;5=88.05;6=70.15;0=53.3;"
+  cw = "1=44.35;2=48.3;3=61.05;4=46.8;5=37.05;6=49.8;0=40.8;"
+  For n = 8 To 20 Step 4
+    sp[n] = Text.GetSubText("                    ", 1, n)
+  EndFor
+EndSub
+
+Sub Cal_PrintMonth
+  ' Calender | Print month
+  ' param year - year
+  ' param m - month
+  ' param doy - days of year
+  ' param woy - week of year
+  w = Math.Remainder((doy + woy), 7)
+  buf = buf + "          "
+  If year < 10 Then
+    buf = Text.Append(buf + "   ", year)
+  ElseIf year < 100 Then
+    buf = Text.Append(buf + "  ", year)
+  ElseIf year < 1000 Then
+    buf = Text.Append(buf + " ", year)
+  Else
+    buf = Text.Append(buf, year)
+  EndIf
+  buf = Text.Append(buf, " ")
+  If m < 10 Then
+    buf = Text.Append(buf + " ", m) + CR + LF
+  Else
+    buf = Text.Append(buf, m) + CR + LF
+  EndIf
+  buf = buf + CR + LF
+  buf = buf + "SUN MON TUE WED THU FRI SAT" + CR + LF
+  wom = 0
+  While wom < w
+    buf = buf + "    "
+    wom = wom + 1
+  EndWhile
+  For day = 1 To dom[m]
+    If day < 10 Then
+      buf = buf + "  " + day + " "
+    Else
+      buf = buf + " " + day + " "
+    EndIf
+    If Math.Remainder(wom, 7) = 6 Then
+      buf = buf + CR + LF
+    EndIf
+    wom = wom + 1
+  EndFor
+  If Math.Remainder(wom, 7) > 0 Then
+    buf = buf + CR + LF
+  EndIf
+  buf = buf + CR + LF
+EndSub
