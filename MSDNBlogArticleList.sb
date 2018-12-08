@@ -1,14 +1,19 @@
 ' MSDN Blog Article List
-' Version 0.3
-' Copyright © 2016-2017 Nonki Takahashi.  The MIT License.
-' Last update 2017-05-22
-' Program ID NPB609-1
+' Version 0.4
+' Copyright © 2016-2018 Nonki Takahashi.  The MIT License.
+' Last update 2018-12-08
+' Program ID NPB609-3
 
 WQ = Text.GetCharacter(34)
 SQ = "'"
 LT = "<"
 Not = "False=True;True=False;"
-formName = "Blog.frm.sb"  ' SHP804-1
+formID = "SHP804-2"
+formName = "Blog.frm.sb"
+indent = ""
+result = ""   ' dummy
+dirs = ""     ' dummy
+Form_ImportForm()
 Form_GetForm()
 Form_ShowForm()
 site = "https://blogs.msdn.microsoft.com"
@@ -85,6 +90,7 @@ Sub FindTag
   ' param["tag"] - tag name
   ' param["class"] - class name
   ' param["rel"] - rel name
+  ' param["id"] - id
   ' param p - pointer for buffer
   ' param buf - html buffer
   ' return tag - found tag
@@ -105,7 +111,9 @@ Sub FindTag
         Stack.PushValue("local", pTag)
         GetAttrAndText()
         pTag = Stack.PopValue("local")
-        If param["class"] <> "" Then
+        If param["id"] <> "" Then
+          target = "id"
+        ElseIf param["class"] <> "" Then
           target = "class"
         Else
           target = "rel"
@@ -319,6 +327,48 @@ Sub Buf_Init
   p = 1
 EndSub
 
+Sub File_CheckResult
+  ' param result, dirs or files - result of a File operation
+  ' param op - name of File operation
+  If op = "CreateDirectory" And result = "FAILED" Then
+    FileHelper_ShowError()
+  ElseIf op = "DeleteDirectory" And result = "FAILED" Then
+    FileHelper_ShowError()
+  ElseIf op = "GetDirectories" And dirs = "FAILED" Then
+    FileHelper_ShowError()
+  ElseIf op = "DeleteFile" And result = "FAILED" Then
+    FileHelper_ShowError()
+  ElseIf op = "GetFiles" And files = "FAILED" Then
+    FileHelper_ShowError()
+  EndIf
+EndSub
+
+Sub File_Exists
+  ' param["path"] - the full path of the file that needs to be checked 
+  ' return fileExists - "True" if the file exists
+  fileExists = "False"
+  Path_GetDirectoryName()
+  files = File.GetFiles(directoryName)
+  op = "GetFiles"
+  File_CheckResult()
+  nFiles = Array.GetItemCount(files)
+  For i = 1 To nFiles
+    If Text.ConvertToLowerCase(files[i]) = Text.ConvertToLowerCase(param["path"]) Then
+      fileExists = "True"
+      i = nFiles  ' break
+    EndIf
+  EndFor
+EndSub
+
+Sub FileHelper_ShowError
+  ' param op - oparation name
+  ' param indent - indent space if needed
+  TextWindow.ForegroundColor = "Yellow"
+  TextWindow.WriteLine(indent + op + ":FAILED")
+  TextWindow.WriteLine(indent + "LastError:" + File.LastError)
+  TextWindow.ForegroundColor = "Gray"
+EndSub
+
 Sub Form_GetForm
   ' Form | Get form from file
   ' param formName - form file name
@@ -338,6 +388,21 @@ Sub Form_GetForm
       EndIf
     EndIf
   EndWhile
+EndSub
+
+Sub Form_ImportForm
+  ' Form | Get form from file
+  ' param formID - form program ID
+  ' param formName - form file name
+  param = ""
+  param["path"] = Program.Directory + "/" + formName
+  File_Exists()
+  If Not[fileExists] Then
+    url = "http://smallbasic.com/program/?" + formID
+    Program_Import()
+    folder = Program.Directory
+    File.WriteContents(param["path"], pgm)
+  EndIf
 EndSub
 
 Sub Form_ShowForm
@@ -453,4 +518,47 @@ Sub Line_RemoveLeadingSpace
   EndWhile
   line = Text.GetSubTextToEnd(line, p)
   p = Stack.PopValue("local")
+EndSub
+
+Sub Path_GetDirectoryName
+  ' param["path"] - the full path to be gotton directory name 
+  ' return directoryName - the directory name
+  directoryName = ""
+  For p = Text.GetLength(param["path"]) To 1 Step -1
+    c = Text.GetSubText(param["path"], p, 1)
+    If c = "\" Or c = "/" Then
+      directoryName = Text.GetSubText(param["path"], 1, p - 1)
+      p = 1 ' break
+    EndIf
+  EndFor
+EndSub
+
+Sub Program_Import
+  ' Program | Import program from Program List server
+  ' param url - program URL
+  ' return pgm
+  Stack.PushValue("local", param)
+  buf = Network.GetWebPageContents(url)
+  p = 1
+  param = "tag=div;id=codeListing;"
+  FindTag()
+  GetAttrAndText()
+  pgm = ""
+  p = 1
+  While p <= Text.GetLength(txt)
+    pLT = Text.GetIndexOf(Text.GetSubTextToEnd(txt, p), LT)
+    If 0 < pLT Then
+      pGT = Text.GetIndexOf(Text.GetSubTextToEnd(txt, p + pLT), ">")
+      tag = Text.GetSubText(txt, p + pLT - 1, pGT + 1)
+      pgm = Text.Append(pgm, Text.GetSubText(txt, p, pLT - 1))
+      If tag = LT + "br />" Then
+        pgm = pgm + CR + LF
+      EndIf
+      p = p + pLT + pGT
+    Else
+      pgm = Text.Append(pgm, Text.GetSubTextToEnd(txt, p))
+      p = Text.GetLength(txt) + 1
+    EndIf
+  EndWhile
+  param = Stack.PopValue("local")
 EndSub
