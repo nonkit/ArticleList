@@ -1,0 +1,411 @@
+' Challenge of the Month List
+' Version 0.1
+' Copyright © 2019 Nonki  Takahashi.  The MIT License.
+' Last update 2019-01-30
+
+GraphicsWindow.Title = "Challenge of the Month List 0.1"
+Init()
+Form()
+buttonClicked = "False"
+Controls.ButtonClicked = OnButtonClicked
+While "True"
+  If buttonClicked Then
+    CheckInput()
+    Controls.SetTextBoxText(tbox, year + "/" + month)
+    If error Then
+      GraphicsWindow.ShowMessage(msg, "Error")
+    Else
+      GetForumInfo()
+    EndIf
+    Controls.SetTextBoxText(tbox, list)
+    buttonClicked = "False"
+  Else
+    Program.Delay(300)
+  EndIf
+EndWhile
+
+Sub CheckInput
+  ' return year
+  ' return month
+  ' return msg - error message
+  ' return error - "True" if error
+  error = "False"
+  ' check year
+  year = Controls.GetTextBoxText(tboxYear)
+  If year = "" Then
+    year = Clock.Year
+    Controls.SetTextBoxText(tboxYear, year)
+  EndIf
+  If year < 2011 Or Clock.Year < year Then
+    msg = "Illeagal year " + year
+    error = "True"
+  EndIf
+  ' check month
+  month = Controls.GetTextBoxText(tboxMonth)
+  If month = "" Then
+    month = Clock.Month
+    Controls.SetTextBoxText(tboxMonth, month)
+  EndIf
+  If month < 1 Or 12 < month Then
+    msg = "Illeagal month " + month
+    error = "True"
+  EndIf
+EndSub
+
+Sub TrimText
+  ' Remove redandunt space from the text
+  ' param txt - original text
+  ' return txt - trim text
+  len = Text.GetLength(txt)
+  _txt = ""
+  delim = " " + CR + LF
+  space = "True"  ' last character is space
+  For i = 1 To len
+    c = Text.GetSubText(txt, i, 1)
+    If Text.IsSubText(delim, c) Then
+      If Not[space] Then
+        space = "True"
+        _txt = Text.Append(_txt, " ")
+      EndIf
+    Else
+      space = "False"
+      _txt = Text.Append(_txt, c)
+    EndIf
+  EndFor
+  txt = _txt
+EndSub
+
+Sub ConvertText
+  ' Convert &*; to unicode character
+  ' param txt
+  ' return txt
+  While Text.IsSubText(txt, "&") And Text.IsSubText(txt, ";")
+    c = Text.GetIndexOf(txt, "&")
+    l = Text.GetIndexOf(Text.GetSubTextToEnd(txt, c), ";")
+    kw = Text.GetSubText(txt, c + 1, l - 2)
+    If Text.StartsWith(kw, "#") Then
+      txtMid = Text.GetCharacter(Text.GetSubTextToEnd(kw, 2))
+    ElseIf kw = "quot" Then
+      txtMid = Text.GetCharacter(34)
+    Else
+      txtMid = ""
+    EndIf
+    txtLeft = Text.GetSubText(txt, 1, c - 1)
+    txtRight = Text.GetSubTextToEnd(txt, c + l)
+    txt = Text.Append(txtLeft, Text.Append(txtMid, txtRight))
+  EndWhile
+EndSub
+
+Sub FindTag
+  ' Find tag from html buffer
+  ' param["tag"] - tag name
+  ' param["class"] - class name
+  ' param["name"] - name
+  ' param["id"] - id
+  ' param["rel"] - rel name
+  ' param p - pointer for buffer
+  ' param buf - html buffer
+  ' return tag - found tag
+  pSave = p
+  tag = ""
+  findNext = "True"
+  While findNext
+    findNext = "False"        ' tag may be not found
+    pTag = Text.GetIndexOf(Text.GetSubTextToEnd(buf, p), LT + param["tag"])
+    If 0 < pTag Then
+      pTag = p + pTag - 1
+      If Text.IsSubText("a|img", param["tag"]) Then
+        len = Text.GetIndexOf(Text.GetSubTextToEnd(buf, pTag), ">")
+      Else
+        len = Text.GetIndexOf(Text.GetSubTextToEnd(buf, pTag), "/" + param["tag"] + ">")
+        If 0 < len Then
+          lTag = Text.GetLength(param["tag"]) + 1
+          len = len + lTag
+        EndIf
+      EndIf
+      If 0 < len Then
+        findNext = "True"     ' tag may be different
+        tag = Text.GetSubText(buf, pTag, len)
+        Stack.PushValue("local", pTag)
+        GetAttrAndText()
+        pTag = Stack.PopValue("local")
+        If param["class"] <> "" Then
+          target = "class"
+        ElseIf param["name"] <> "" Then
+          target = "name"
+        ElseIf param["id"] <> "" Then
+          target = "id"
+        ElseIf param["rel"] <> "" Then
+          target = "rel"
+        Else
+          target = ""
+        EndIf
+        If (target = "") Or (param[target] = attr[target]) Then
+          findNext = "False"  ' found the tag
+        Else
+          tag = ""
+        EndIf
+        p = pTag + len
+      EndIf
+    EndIf
+  EndWhile
+  If tag = "" Then
+    p = pSave
+  EndIf
+EndSub
+
+Sub Form
+  gw = 598
+  gh = 428
+  GraphicsWindow.Width = gw
+  GraphicsWindow.Height = gh
+  GraphicsWindow.BackgroundColor = "LightGray"
+  GraphicsWindow.BrushColor = "Black"
+  GraphicsWindow.DrawText(10, 11, "Year")
+  tboxYear = Controls.AddTextBox(50, 7)
+  Controls.SetSize(tboxYear, 50, 22)
+  GraphicsWindow.DrawText(120, 11, "Month")
+  tboxMonth = Controls.AddTextBox(160, 7)
+  Controls.SetSize(tboxMonth, 50, 22)
+  btn = Controls.AddButton("List", 230, 5)
+  GraphicsWindow.FontName = "Courier New"
+  tbox = Controls.AddMultiLineTextBox(5, 33)
+  Controls.SetSize(tbox, gw - 10, gh - 38)
+EndSub
+
+Sub GetAttrAndText
+  ' Get attributes and text from given tag
+  ' param tag - given tag
+  ' return attr[] - array of attributes in the tag
+  ' return txt - text in the tag
+  pTag = Text.GetIndexOf(tag, " ") + 1
+  pEnd = Text.GetIndexOf(tag, ">")
+  attr = ""
+  While pTag <= pEnd
+    pEq = Text.GetIndexOf(Text.GetSubTextToEnd(tag, pTag), "=")
+    If 0 < pEq Then
+      pEq = pTag + pEq - 1
+      pQ = Text.GetIndexOf(SQ + WQ, Text.GetSubText(tag, pEq + 1, 1))
+      If 0 < pQ Then
+        Q = Text.GetSubText(SQ + WQ, pQ, 1)
+        pQ = Text.GetIndexOf(Text.GetSubTextToEnd(tag, pEq + 2), Q)
+        If 0 < pQ Then
+          pQ = pEq + 2 + pQ - 1
+          txt = Text.GetSubText(tag, pEq + 2, pQ - pEq - 2)
+          ConvertText()
+          attr[Text.GetSubText(tag, pTag, pEq - pTag)] = txt
+          pTag = pQ + 2
+        EndIf
+      Else ' to avoid hang with no quotes after equal
+        txt = Text.GetSubText(tag, pEq + 2, pEnd - pEq - 2)
+        ConvertText()
+        attr[Text.GetSubText(tag, pTag, pEq - pTag)] = txt
+        pTag = pEnd + 1
+      EndIf
+    Else
+      pTag = pEnd + 1
+    EndIf
+  EndWhile
+  pTag = 1
+  len = Text.GetLength(tag)
+  txt = ""
+  While pTag <= len
+    ' find "<"
+    pL = Text.GetIndexOf(Text.GetSubTextToEnd(tag, pTag), LT)
+    If pL = 0 Then
+      ' "<" not found: append rest text to txt
+      txt = Text.Append(txt, Text.GetSubTextToEnd(tag, pTag))
+      pTag = len + 1
+    Else
+      ' "<" found: append rest text before "<" to txt
+      pL = pTag + pL - 1
+      txt = Text.Append(txt, Text.GetSubText(tag, pTag, pL - pTag))
+      pR = Text.GetIndexOf(Text.GetSubTextToEnd(tag, pTag), ">")
+      If 0 < pR Then
+        pTag = pTag + pR
+      Else
+        pTag = len + 1
+      EndIf
+    EndIf
+  EndWhile
+EndSub
+
+Sub GetForumInfo
+  ' param year
+  ' param month
+  ' return list - challenges list text in the given Challenge of the Month
+  If bufTechNet = "" Then
+    ' get a TechNet Wiki article about Challenge of the Month
+    site = "https://social.technet.microsoft.com/wiki/contents/articles/24745.small-basic-challenge-of-the-month.aspx"
+    bufTechNet = Network.GetWebPageContents(site)
+  EndIf
+  Controls.SetTextBoxText(tbox, bufTechNet)
+  ' find tag (a name="Year2_xx") from the TechNet Wiki article
+  buf = bufTechNet
+  p = 1
+  param = "tag=a;"
+  param["name"] = "Year2_" + Text.GetSubText(year, 3, 2)
+  _p = param
+  FindTag()
+  found = "False"
+  eod = "False"
+  While Not[found] And Not[eod]
+    ' find tag (td class="telerik-reTableFirstCol-4") from the TechNet Wiki article
+    param = "tag=td;class=telerik-reTableFirstCol-4;"
+    FindTag()
+    If tag = "" Then
+      eod = "True"
+    ElseIf Text.IsSubText(tag, nameMonth[month]) Then
+      ' if the found tag (td) contains the month name
+      _buf = buf
+      _p = p
+      buf = tag
+      p = 1
+      ' find tag (a href="...")
+      param = "tag=a;"
+      FindTag()
+      buf = _buf
+      p = _p
+      found = "True"
+    EndIf
+  EndWhile
+  list = ""
+  If found Then
+    ' get the Challenge of the Month thread from Small Basic Forum
+    site = attr["href"]
+    buf = Network.GetWebPageContents(site)
+    Controls.SetTextBoxText(tbox, buf)
+    ' find tag (title) in the thread
+    p = 1
+    param = "tag=title;"
+    FindTag()
+    If tag <> "" Then
+      ConvertText()
+      TrimText()
+      title = txt
+    EndIf
+    ' find tag (span class="votinglabel type") in the thread
+    param = "tag=span;class=votinglabel type;"
+    FindTag()
+    txt =""
+    eod = "False"
+    nCategory = 0
+    category = ""
+    challenge = ""
+    pCategory = ""
+    ' find tag (strong) in the thread
+    param = "tag=strong;"
+    FindTag()
+    found = "False"
+    While Not[found] And Not[eod]
+      ' find the first tag (strong) in the thread
+      FindTag()
+      If tag = "" Then
+        eod = "True"
+      ElseIf Text.IsSubText(txt, "Challenge") Or Text.IsSubText(txt, "Suggestion") Then
+        ' found the first tag (strong) which contains "Challenge"
+        found = "True"
+        ConvertText()
+        TrimText()
+        nCategory = nCategory + 1
+        category[nCategory] = txt
+        pCategory[nCategory] = p
+      EndIf
+    EndWhile
+    While Not[eod]
+      found = "False"
+      param = "tag=strong;"
+      While Not[found] And Not[eod]
+        ' find the next tag (strong) in the thread
+        FindTag()
+        If tag = "" Then
+          eod = "True"
+        ElseIf Text.IsSubText(txt, "Challenge") Or Text.IsSubText(txt, "Suggestion") Then
+          ' found the next tag (strong) which contains "Challenge"
+          found = "True"
+          ConvertText()
+          TrimText()
+          category[nCategory + 1] = txt
+          pCategory[nCategory + 1] = p
+        EndIf
+      EndWhile
+      If eod Then
+        ' there is not the next tag (strong) wich contains "Challenge"
+        pCategory[nCategory + 1] = Text.GetLength(buf) + 1
+      EndIf
+      nChallenge = 0
+      entry = ""
+      p = pCategory[nCategory]
+      ' find tag (ul)
+      param = "tag=ul;"
+      FindTag()
+      If (tag <> "") And (p < pCategory[nCategory + 1]) Then
+        _buf = buf
+        ' in the ul tag
+        buf = tag
+        p = 1
+        ' find tag (li)
+        param = "tag=li;"
+        eoc = "False" ' end of challenge
+        While Not[eoc]
+          FindTag()
+          If tag = "" Then
+            eoc = "True"
+          Else
+            ConvertText()
+            TrimText()
+            nChallenge = nChallenge + 1
+            entry[nChallenge] = txt
+          EndIf
+        EndWhile
+        buf = _buf
+      EndIf
+      challenge[nCategory] = entry
+      nCategory = nCategory + 1
+      p = pCategory[nCategory]
+    EndWhile
+    list = title + LF + site + LF
+    For j = 1 To nCategory
+      list = list + TAB + category[j] + LF
+      entry = challenge[j]
+      For i = 1 To Array.GetItemCount(entry)
+        list = list + TAB + TAB + "• " + entry[i] + LF
+      EndFor
+    EndFor
+  EndIf
+EndSub
+
+Sub Init
+  Not = "True=False;False=True;"
+  AMP = "&"                   ' ampersand
+  CR = Text.GetCharacter(13)  ' carriage return
+  LF = Text.GetCharacter(10)  ' line feed
+  LT = "<"                    ' less than
+  SQ = "'"                    ' single quote
+  TAB = Text.GetCharacter(9)  ' horizontal tab
+  WQ = Text.GetCharacter(34)  ' double quote
+  nameMonth = "1=January;2=February;3=March;4=April;5=May;"
+  nameMonth = nameMonth + "6=June;7=July;8=August;9=September;"
+  nameMonth = nameMonth + "10=October;11=November;12=December;"
+EndSub
+
+Sub OnButtonClicked
+  buttonClicked = "True"
+EndSub
+
+Sub ParseDate
+  ' param post["date"]
+  ' return post["year"]
+  ' return post["month"]
+  ' return post["day"]
+  For m = 1 To 12
+    If Text.StartsWith(post["date"], nameMonth[m]) Then
+      post["month"] = m
+      m = 12  ' exit For
+    EndIf
+  EndFor
+  len = Text.GetLength(nameMonth[post["month"]])
+  comma = Text.GetIndexOf(post["date"], ",")
+  post["day"] = Text.GetSubText(post["date"], len + 2, comma - len - 2)
+  post["year"] = Text.GetSubTextToEnd(post["date"], comma + 2)
+EndSub
