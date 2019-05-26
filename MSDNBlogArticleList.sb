@@ -1,8 +1,8 @@
 ' MSDN Blog Article List
-' Version 0.4
-' Copyright © 2016-2018 Nonki Takahashi.  The MIT License.
-' Last update 2018-12-08
-' Program ID NPB609-3
+' Version 0.5
+' Copyright © 2016-2019 Nonki Takahashi.  The MIT License.
+' Last update 2019-05-24
+' Program ID NPB609-4
 
 WQ = Text.GetCharacter(34)
 SQ = "'"
@@ -328,6 +328,7 @@ Sub Buf_Init
 EndSub
 
 Sub File_CheckResult
+  ' File | check File operation result
   ' param result, dirs or files - result of a File operation
   ' param op - name of File operation
   If op = "CreateDirectory" And result = "FAILED" Then
@@ -344,10 +345,11 @@ Sub File_CheckResult
 EndSub
 
 Sub File_Exists
+  ' File | check a file exists
   ' param["path"] - the full path of the file that needs to be checked 
   ' return fileExists - "True" if the file exists
   fileExists = "False"
-  Path_GetDirectoryName()
+  File_SplitDirectory()
   files = File.GetFiles(directoryName)
   op = "GetFiles"
   File_CheckResult()
@@ -355,12 +357,27 @@ Sub File_Exists
   For i = 1 To nFiles
     If Text.ConvertToLowerCase(files[i]) = Text.ConvertToLowerCase(param["path"]) Then
       fileExists = "True"
-      i = nFiles  ' break
+      i = nFiles  ' exit For
+    EndIf
+  EndFor
+EndSub
+
+Sub File_SplitDirectory
+  ' File | split directory name
+  ' param["path"] - the full path to be gotton directory name 
+  ' return directoryName - the directory name
+  directoryName = ""
+  For p = Text.GetLength(param["path"]) To 1 Step -1
+    c = Text.GetSubText(param["path"], p, 1)
+    If c = "\" Or c = "/" Then
+      directoryName = Text.GetSubText(param["path"], 1, p - 1)
+      p = 1 ' exit For
     EndIf
   EndFor
 EndSub
 
 Sub FileHelper_ShowError
+  ' File Helper | show last errer
   ' param op - oparation name
   ' param indent - indent space if needed
   TextWindow.ForegroundColor = "Yellow"
@@ -518,19 +535,6 @@ Sub Line_RemoveLeadingSpace
   EndWhile
   line = Text.GetSubTextToEnd(line, p)
   p = Stack.PopValue("local")
-EndSub
-
-Sub Path_GetDirectoryName
-  ' param["path"] - the full path to be gotton directory name 
-  ' return directoryName - the directory name
-  directoryName = ""
-  For p = Text.GetLength(param["path"]) To 1 Step -1
-    c = Text.GetSubText(param["path"], p, 1)
-    If c = "\" Or c = "/" Then
-      directoryName = Text.GetSubText(param["path"], 1, p - 1)
-      p = 1 ' break
-    EndIf
-  EndFor
 EndSub
 
 Sub Program_Import

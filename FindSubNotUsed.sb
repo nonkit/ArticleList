@@ -1,0 +1,295 @@
+' Find Subroutines Not Used
+' Version 0.31
+' Copyright © 2018-2019 Nonki Takahashi.  The MIT License.
+' Last update 2019-05-22
+
+Init()
+GraphicsWindow.Title = "Find Subroutines Not Used"
+Form()
+folder = Program.Directory
+files = File.GetFiles(folder)
+nFiles = Array.GetItemCount(files)
+buf = ""
+For i = 1 To nFiles
+  If Text.EndsWith(files[i], ".sb") Then
+    Controls.SetTextBoxText(tbox, files[i]) ' For progress
+    FindSubNotUsed()
+    If subs <> "" Then
+      buf = buf + files[i] + " " + subs + CR + LF
+    EndIf
+  EndIf
+EndFor
+If buf = "" Then
+  Controls.SetTextBoxText(tbox, "There are no subroutines not used in " + folder + ".")
+Else
+  Controls.SetTextBoxText(tbox, buf)
+EndIf
+
+Sub FindSubNotUsed
+  ' param files[i] - file name
+  ' return subs
+  subs = ""
+  callTree = ""
+  src = File.ReadContents(files[i])
+  p = 1
+  eol = Text.GetIndexOf(src, LF)
+  caller = "main"
+  While 0 < eol
+    If (1 <= eol - 2) And (Text.GetSubText(src, p + eol - 2, 1) = CR) Then
+      line = Text.GetSubText(src, p, eol - 2)
+    Else
+      line = Text.GetSubText(src, p, eol - 1)
+    EndIf
+    len = Text.GetLength(line)
+    ParseSub()
+    If match Then
+      caller = subName
+      If Not[Array.ContainsIndex(callTree, subName)] Then
+        callTree[subName] = "(none)=caller;"
+      EndIf
+    Else
+      ParseEndSub()
+      If match Then
+        caller = "main"
+      EndIf
+    EndIf
+    If Not[match] Then
+      ParseCall()
+      If Not[match] Then
+        ParseEvent()
+      EndIf
+      If match And (subName <> caller) Then
+        callTree[subName][caller] = "caller"
+        callTree[subName]["(none)"] = ""
+      EndIf
+    EndIf
+    p = p + eol
+    eol = Text.GetIndexOf(Text.GetSubTextToEnd(src, p), LF)
+  EndWhile
+  nCallee = Array.GetItemCount(callTree)
+  idxCallee = Array.GetAllIndices(callTree)
+  For j = 1 To nCallee
+    callee = idxCallee[j]
+    CheckCalled()
+    If Not[called] Then
+      If subs <> "" Then
+        subs = subs + " "
+      EndIf
+      subs = subs + callee
+    EndIf
+  EndFor
+EndSub
+
+Sub CheckCalled
+  ' param callee
+  ' return called - "True" If called from main
+  caller = callTree[callee]
+  If Array.ContainsIndex(caller, "main") Then
+    called = "True"
+  Else
+    called = "False"
+    idxCaller = Array.GetAllIndices(caller)
+    nCaller = Array.GetItemCount(caller)
+    For k = 1 To nCaller
+      Stack.PushValue("local", caller)
+      Stack.PushValue("local", idxCaller)
+      Stack.PushValue("local", nCaller)
+      Stack.PushValue("local", k)
+      Stack.PushValue("local", callee)
+      callee = idxCaller[k]
+      CheckCalled()
+      callee = Stack.PopValue("local")
+      k = Stack.PopValue("local")
+      nCaller = Stack.PopValue("local")
+      If called Then
+        k = nCaller ' exit For
+      EndIf
+      idxCaller = Stack.PopValue("local")
+      caller = Stack.PopValue("local")
+    EndFor
+  EndIf
+EndSub
+
+Sub Form
+  gw = 598
+  gh = 428
+  GraphicsWindow.Width = gw
+  GraphicsWindow.Height = gh
+  GraphicsWindow.BackgroundColor = "LightGray"
+  GraphicsWindow.BrushColor = "Black"
+  tbox = Controls.AddMultiLineTextBox(10, 10)
+  Controls.SetSize(tbox, gw - 20, gh - 20)
+EndSub
+
+Sub GetToken
+  ' param line
+  ' param len - length of line
+  ' param lp - line pointer
+  ' return match - "True" If match
+  ' return lp - updated line pointer
+  ' return token
+  match = "False"
+  token = ""
+  c = Text.GetSubText(line, lp, 1)
+  While (lp <= len) And Text.IsSubText(ALPHANUM, c)
+    token = Text.Append(token, c)
+    match = "True"
+    lp = lp + 1
+    c = Text.GetSubText(line, lp, 1)
+  EndWhile
+EndSub
+
+Sub Init
+  Not = "False=True;True=False;"
+  CR = Text.GetCharacter(13)
+  LF = Text.GetCharacter(10)
+  ALPHA = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
+  NUM = "0123456789"
+  ALPHANUM = ALPHA + NUM
+  obj[1] = "controls"
+  obj[2] = "graphicswindow"
+  obj[3] = "timer"
+  event[1] = "controls.buttonclicked"
+  event[2] = "controls.texttyped"
+  event[3] = "graphicswindow.keydown"
+  event[4] = "graphicswindow.keyup"
+  event[5] = "graphicswindow.mousemove"
+  event[6] = "graphicswindow.mousedown"
+  event[7] = "graphicswindow.mouseup"
+  event[8] = "graphicswindow.textinput"
+  event[9] = "timer.tick"
+EndSub
+
+Sub ParseCall
+  ' param line
+  ' param len - length of line
+  ' return match - "True" If match
+  ' return subName - subroutine name
+  lp = 1
+  SkipSpace()
+  GetToken()
+  If match Then
+    SkipSpace()
+    symbol = "("
+    SkipSymbol()
+  EndIf
+  If match Then
+    SkipSpace()
+    symbol = ")"
+    SkipSymbol()
+  EndIf
+  If match Then
+    subName = token
+  Else
+    lp = 1
+  EndIf
+EndSub
+
+Sub ParseEvent
+  ' param line
+  ' param len - length of line
+  ' return match - "True" If match
+  ' return subName - subroutine name
+  lp = 1
+  SkipSpace()
+  GetToken()
+  If match Then
+    kw = Text.ConvertToLowerCase(token) 
+    If Array.ContainsValue(obj, kw) Then
+      SkipSpace()
+      symbol = "."
+      SkipSymbol()
+    Else
+      match = "False"
+    EndIf
+  EndIf
+  If match Then
+    SkipSpace()
+    GetToken()
+  EndIf
+  If match Then
+    kw = kw + "." + Text.ConvertToLowerCase(token) 
+    If Array.ContainsValue(event, kw) Then
+      SkipSpace()
+      symbol = "="
+      SkipSymbol()
+    Else
+      match = "False"
+    EndIf
+  EndIf
+  If match Then
+    SkipSpace()
+    GetToken()
+  EndIf
+  If match Then
+    subName = token
+  Else
+    lp = 1
+  EndIf
+EndSub
+
+Sub ParseEndSub
+  ' param line
+  ' param len - length of line
+  ' return match - "True" If match
+  lp = 1
+  SkipSpace()
+  GetToken()
+  If Not[match] Or (Text.ConvertToLowerCase(token) <> "endsub") Then
+    match = "False"
+    lp = 1
+  EndIf
+EndSub
+
+Sub ParseSub
+  ' param line
+  ' param len - length of line
+  ' return match - "True" If match
+  ' return subName - subroutine name
+  lp = 1
+  SkipSpace()
+  GetToken()
+  If Not[match] Or (Text.ConvertToLowerCase(token) <> "sub") Then
+    match = "False"
+  EndIf
+  If match Then
+    SkipSpace()
+    GetToken()
+  EndIf
+  If match Then
+    subName = token
+  Else
+    lp = 1
+  EndIf
+EndSub
+
+Sub SkipSpace
+  ' param line
+  ' param len - length of line
+  ' param lp - line pointer
+  ' return match - "True" If match
+  ' return lp - updated line pointer
+  match = "False"
+  c = Text.GetSubText(line, lp, 1)
+  While (lp <= len) And (c = " ")
+    match = "True"
+    lp = lp + 1
+    c = Text.GetSubText(line, lp, 1)
+  EndWhile
+EndSub
+
+Sub SkipSymbol
+  ' param symbol
+  ' param line
+  ' param len - length of line
+  ' param lp - line pointer
+  ' return match - "True" If match
+  ' return lp - updated line pointer
+  match = "False"
+  c = Text.GetSubText(line, lp, 1)
+  If (lp <= len) And (c = symbol) Then
+    match = "True"
+    lp = lp + 1
+    c = Text.GetSubText(line, lp, 1)
+  EndIf
+EndSub
