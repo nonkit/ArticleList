@@ -1,5 +1,5 @@
 # NetworkLib.ps1 - Network Library
-# Version 0.1
+# Version 0.2
 # Copyright © 2019 Nonki Takahashi.  The MIT License.
 
 function Convert-Text {
@@ -53,7 +53,7 @@ function Find-Tag ($tagName, $class, $rel, $id){
                 $lTag = $tag.Length + ('/' + $tagName + '>').Length
                 $len += $lTag
                 $tag = $buf.Substring($pTag, $len)
-                Get-AttrAndText
+                Get-AttrAndText $tag
                 if ($id) {
                     $value = $id
                     $target = 'id'
@@ -81,7 +81,7 @@ function Find-Tag ($tagName, $class, $rel, $id){
     $tag
 }
 
-function Get-AttrAndText {
+function Get-AttrAndText ($tag) {
     # Get attributes and text from given tag
     # param $tag - given tag
     # return $script:attr{} - hash of attributes in the tag

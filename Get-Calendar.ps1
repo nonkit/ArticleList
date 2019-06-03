@@ -1,18 +1,19 @@
 ﻿# Get-Calendar.ps1 - Get HTML Calendar from Microsoft Tech Community Blog
-# Version 0.1a
+# Version 0.2
 # Copyright © 2019 Nonki Takahashi.  The MIT License.
 
 # Usage:
 # .\Get-Calendar {SmallBasic | EducationBlog | AzureDevCommunityBlog} [yyyy [q [yyyy [q]]]]
 
 # History:
+#  0.2a 2019-05-27 Rewrote Get-BlogInfo.
 #  0.1a 2019-05-26 Created.
 
 # dot source
 . ($PSScriptRoot + '\NetworkLib.ps1')
 
 function Get-BlogInfo {
-    # param $script:iBlog - index of blog information arrays
+    # param $iBlog - index of blog information arrays
     # param $script:ym0 - year and month from
     # param $script:ym1 - year and month to
     # return $script:blog - blog post array
@@ -20,20 +21,61 @@ function Get-BlogInfo {
     $long = $l[$iBlog]
     $blog = $b[$iBlog]
     $tagB = $t[$iBlog]
-    $script:blog = @()
-    $buf = Get-WebPageContents $url
-    $page = 1
-    $script:p = 0
-    # link to a post
-    Write-Host 'link to a post:' -ForegroundColor Green
-    Find-Tag -tagName 'a' -class 'page-link lia-link-navigation lia-custom-event'
-    # author and date
-    Write-Host 'author and date:' -ForegroundColor Green
-    Find-Tag -tagName 'div' -class 'author-details'
-    # next page
-    Write-Host 'next page:' -ForegroundColor Green
-    Find-Tag -tagName 'a' -class ('lia-link-navigation lia-js-data-pageNum-{0} lia-custom-event' -f ++$page)
-    # https://techcommunity.microsoft.com/t5/Small-Basic-Blog/bg-p/SmallBasic/page/2
+    $url = 'https://techcommunity.microsoft.com/t5/{0}/bg-p/{1}' -f $long, $blog
+    $script:blog = @{}
+    $nArticle = 0
+    $maxPage = 1
+    $stack = New-Object System.Collections.Stack
+    for ($page = 1; $page -le $maxPage; $page++) {
+        $post = @{}
+        # get web page contents
+        $url + '/page/' + $page
+        $buf = Get-WebPageContents ($url + '/page/' + $page)
+        $script:p = 0
+        $tag = 'found'
+        while ($tag) {
+            # link to a post
+            $tag = Find-Tag -tagName 'a' -class 'page-link lia-link-navigation lia-custom-event'
+            if ($tag) {
+                $post['url'] = $script:attr['href']
+                $post['title'] = $script:txt.Trim()
+                # author and date
+                $tag = Find-Tag -tagName 'div' -class 'author-details'
+            }
+            if ($tag) {
+                $stack.Push($buf)
+                $stack.Push($script:p)
+                $buf = $tag
+                $script:p = 0
+                $tag = Find-Tag -tagName 'a'
+                if ($tag) {
+                    $post['by'] = $script:txt
+                    $tag = Find-Tag -tagName 'span' 
+                }
+                if ($tag) {
+                    $tag = Find-Tag -tagName 'span' 
+                }
+                if ($tag) {
+                    $post['date'] = $script:txt.Substring(0, 10) 
+                    $post['#'] = ++$nArticle
+                    $script:blog += @{$nArticle = $post}
+                    # blog hash
+                    '$post[''#''] = ''{0}''' -f $post['#']
+                    '$post[''title''] = ''{0}''' -f $post['title']
+                    '$post[''url''] = ''{0}''' -f $post['url']
+                    '$post[''by''] = ''{0}''' -f $post['by']
+                    '$post[''date''] = ''{0}''' -f $post['date']
+                }
+                $script:p = $stack.Pop()
+                $buf = $stack.Pop()
+            }
+        }
+        # next page
+        $tag = Find-Tag -tagName 'a' -class ('lia-link-navigation lia-js-data-pageNum-{0} lia-custom-event' -f ($page + 1))
+        if ($tag) {
+            $maxPage = $page + 1
+        }
+    }
     # https://techcommunity.microsoft.com/t5/tag/Vijaye%20Raji/tg-p/board-id/SmallBasic
 }
 
@@ -43,9 +85,14 @@ function Initialize-BlogTable {
     $script:a = @()
     $script:t = @()
     # Small Basic Blog
+    $auth = @{}
+    $auth['Ed Price - MSFT'] = 'Ed'
+    $auth['litdev'] = 'LitDev'
+    $auth['Qazwsxedc Qazwsxedc'] = 'Noar Buscher'
+    $auth['Nonki Takahashi']  = 'Nonki'
     $script:b += 'SmallBasic'
     $script:l += 'Small-Basic-Blog'
-    $script:a += @{Ed_Price_0x45_MSFT = 'Ed'; litdev = 'LitDev'; Qazwsxedc_Qazwsxedc = 'Noar Buscher'; Nonki_Takahashi = 'Nonki'}
+    $script:a += $auth
     $script:t += ''
     # Education Blog
     $script:b += 'EducationBlog'
@@ -78,6 +125,7 @@ function Test-Arg {
     # return $script:ym1 - year and month to
     # return $script:msg - error message
     # return $script:err - $true if error
+    # return $script:iBlog - blog index
     $script:err = $false
     # check blog
     if (-not $blog) {
@@ -91,8 +139,6 @@ function Test-Arg {
     if ($b.Length -le $i) {
         $script:msg = 'Usage: .\Get-Calendar {SmallBasic | EducationBlog | AzureDevCommunityBlog} [yyyy [q [yyyy [q]]]]'
         $script:err = $true
-    } else {
-        $script:url = 'https://techcommunity.microsoft.com/t5/{0}/bg-p/{1}' -f $l[$i], $b[$i]
     }
     $script:iBlog = $i
     if (-not $err) {
