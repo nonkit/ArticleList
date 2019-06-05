@@ -1,5 +1,5 @@
 # Convert-BlogUrl.ps1 - Convert Blog URL
-# Version 0.2
+# Version 0.3
 # Copyright © 2019 Nonki Takahashi.  The MIT License.
 
 function Convert-Url ($in) {
@@ -21,13 +21,19 @@ function Convert-Url ($in) {
         $in
     }
 }
+if ($args.Length -lt 2) {
+    Write-Host 'Usage: PS> .\Convert-BlogUrl <Old> <New>'
+    exit
+}
+$oldFile = $args[0]
+$newFile = $args[1]
 # initialize variables
 $oldPath = 'https://blogs.msdn.microsoft.com/smallbasic/'
 $newPath = 'https://techcommunity.microsoft.com/t5/Small-Basic-Blog/'
 # read old and new blog URL
 $csv = Import-CSV '.\OldNew.csv'
 # read old html
-$buf = Get-Content '.\BlogIndexOld2008-2018.html' -Encoding UTF8
+$buf = Get-Content $oldFile -Encoding UTF8
 $out = @()
 for ($i = 0; $i -lt $buf.Length; $i++) {
     if (($i % 1000) -eq 0) {
@@ -36,4 +42,4 @@ for ($i = 0; $i -lt $buf.Length; $i++) {
     $out += (Convert-Url $buf[$i])
 }
 # write new html
-Set-Content '.\BlogIndexNew2008-2018.html' $out -Encoding UTF8
+Set-Content $newFile $out -Encoding UTF8
