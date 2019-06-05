@@ -76,7 +76,7 @@ function Get-BlogInfo {
             $maxPage = $page + 1
         }
     }
-    # https://techcommunity.microsoft.com/t5/tag/Vijaye%20Raji/tg-p/board-id/SmallBasic
+    # /t5/tag/Vijaye%20Raji/tg-p/board-id/SmallBasic
 }
 
 function Initialize-BlogTable {

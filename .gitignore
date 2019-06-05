@@ -4,7 +4,16 @@
 *.pdb
 
 # Output files
-*.html
+BlogArticleList.html
+calendar.html
+list.html
+NonkiArticlelist.html
+UserEdArticleList.html
+
+# Other files
+OldBlog.sb
+*.xlsx
+*.txt
 
 # Debug files
 Graduate
