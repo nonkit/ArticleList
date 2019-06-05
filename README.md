@@ -14,16 +14,16 @@ This is an article list generator for Google Blog.
 
 ## MSDN Blog Article List (will retire)
 This is an article list generator for MSDN Blog.
+MSBlogCalendar is a calender generator for Microsoft Blog.
 - MSDNBlogArticleList.sb
 - Blog.frm.sb (GUI form definition file)
-
-## MSDN Blog Calendar (will retire)
-This is a calender generator for MSDN Blog.
-- MSDNBlogCalendar.sb
+- MSBlogCalendar.sb
 
 ## Tech Community Article List
 This is an article list generator for Microsoft Tech Commmunity Blog.
+Convert-BlogUrl is Small Basic Blog URL converter from MSDN to Tech Community.
 - Get-Calender.ps1
+- Convert-BlogUrl.ps1
 
 ## Wiki Article List
 This is an article list generator for TechNet Wiki.
