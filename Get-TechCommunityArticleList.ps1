@@ -1,14 +1,14 @@
-﻿# Get-Calendar.ps1 - Get HTML Calendar from Microsoft Tech Community Blog
+﻿# Get-TechCommunityArticleList.ps1 - Get Information from Microsoft Tech Community Blog
 # Version 0.3
 # Copyright © 2019 Nonki Takahashi.  The MIT License.
 
 # Usage:
-# .\Get-TechCommunityArticleList | .\Get-Calendar
+# .\Get-TechCommunityArticleList [SmallBasic | EducationBlog | AzureDevCommunityBlog [yyyy [q [yyyy [q]]]]]
 
 # History:
-#  0.3  2019-06-07 Changed comments.
+#  0.3  2019-06-07 Renamed to Get-TechCommunityArticleList.
 #  0.2  2019-05-27 Rewrote Get-BlogInfo.
-#  0.1a 2019-05-26 Created.
+#  0.1a 2019-05-26 Created as Get-Calendar.
 
 # dot source
 . ($PSScriptRoot + '\NetworkLib.ps1')

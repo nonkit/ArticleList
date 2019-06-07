@@ -21,8 +21,10 @@ MSBlogCalendar is a calender generator for Microsoft Blog.
 
 ## Tech Community Article List
 This is an article list generator for Microsoft Tech Commmunity Blog.
+Get-Calendar.ps1 receives blog object from Get-TechComunityArticleList.ps1 and convert to a calender HTML.
 Convert-BlogUrl is Small Basic Blog URL converter from MSDN to Tech Community.
-- Get-Calender.ps1
+- Get-TechCommunityArticleList.ps1
+- Get-Calendar.ps1
 - Convert-BlogUrl.ps1
 
 ## Wiki Article List
