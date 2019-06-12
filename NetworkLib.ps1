@@ -1,28 +1,32 @@
 # NetworkLib.ps1 - Network Library
-# Version 0.2
+# Version 0.3
 # Copyright © 2019 Nonki Takahashi.  The MIT License.
 
-function Convert-Text {
+function Convert-Text ($in) {
     # Convert &*; to unicode character
-    # param $txt
-    # return $script:txt
-    if ($txt) {
-        while ($txt.Contains('&') -and $txt.Contains(';')) {
-            $c = $txt.IndexOf('&')
-            $l = ($txt.Substring($c)).IndexOf(';')
-            $kw = $txt.Substring($c + 1, $l - 2)
-            if ($kw.StartsWith('#')) {
-                $txtMid = [char][byte]($kw.Substring(2))
+    # param $in - text to convert
+    # return - text converted
+    if ($in) {
+        $out = ''
+        while ($in -and (0 -lt ($c = $in.IndexOf('&'))) `
+            -and (0 -lt ($l = ($in.Substring($c)).IndexOf(';')))) {
+            $kw = $in.Substring($c + 1, $l - 1)
+            if ($kw.StartsWith('#') -and ($kw.Length -le 4)) {
+                $to = [char][byte]($kw.Substring(1, $kw.Length - 1))
+            } elseif ($kw.StartsWith('#') -and ($kw.Length -le 6)) {
+                $to = [char][int32]($kw.Substring(1, $kw.Length - 1))
             } elseif ($kw -eq 'quot') {
-                $txtMid = '"'
+                $to = '"'
+            } elseif ($kw -eq 'amp') {
+                $to = '&'
             } else {
-                $txtMid = ''
+                $to = '&'
+                $l = 0
             }
-            $txtLeft = $txt.Substring(0, $c - 1)
-            $txtRight = $txt.Substring($c + $l)
-            $txt = $txtLeft + $txtMid + $txtRight
+            $out += $in.Substring(0, $c) + $to
+            $in = $in.Substring($c + $l + 1)
         }
-        $script:txt = $txt
+        $out + $in
     }
 }
 
@@ -43,7 +47,7 @@ function Find-Tag ($tagName, $class, $rel, $id){
     while ($findNext) {
         # tag may be not found
         $findNext = $false
-        $pTag = ($buf.Substring($p)).IndexOf('<' + $tagName + ' ')
+        $pTag = ($buf.Substring($p)).IndexOf('<' + $tagName)
         if (0 -le $pTag) {
             $pTag += $p
             $len = ($buf.Substring($pTag)).IndexOf('/' + $tagName + '>')
@@ -100,14 +104,12 @@ function Get-AttrAndText ($tag) {
                 if (0 -le $pQ) {
                     $pQ += ($pEq + 2)
                     $txt = $tag.Substring($pEq + 2, $pQ - $pEq - 2)
-                    Convert-Text
                     $script:attr[$tag.Substring($pTag, $pEq - $pTag)] = $txt
                     $pTag = $pQ + 2
                 }
             } else {
                 # to avoid hang with no quotes after equal
                 $txt = $tag.Substring($pEq + 2, $pEnd - $pEq - 2)
-                Convert-Text
                 $script:attr[$tag.Substring($pTag, $pEq - $pTag)] = $txt
                 $pTag = $pEnd + 1
             }
@@ -121,12 +123,12 @@ function Get-AttrAndText ($tag) {
         $pL = ($tag.Substring($pTag)).IndexOf('</')
         if ($pL -lt 0) {
             # '</' not found
-            $script:txt = $script:txt + $tag.Substring($pTag)
+            $script:txt += $tag.Substring($pTag)
             $pTag = $len
         } else {
             # '</' found
             $pL += $pTag
-            $script:txt = $script:txt + $tag.Substring($pTag, $pL - $pTag)
+            $script:txt += $tag.Substring($pTag, $pL - $pTag)
             $pR = ($tag.Substring($pL)).IndexOf('>')
             if (0 -le $pR) {
                 # '>' found
@@ -136,6 +138,9 @@ function Get-AttrAndText ($tag) {
                 $pTag = $len
             }
         }
+    }
+    if ($script:txt) {
+        $script:txt = Convert-Text $script:txt
     }
 }
 

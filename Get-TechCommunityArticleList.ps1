@@ -1,11 +1,12 @@
 ﻿# Get-TechCommunityArticleList.ps1 - Get Article List from Microsoft Tech Community Blog
-# Version 0.4
+# Version 0.5
 # Copyright © 2019 Nonki Takahashi.  The MIT License.
 
 # Usage:
 # .\Get-TechCommunityArticleList [SmallBasic | EducationBlog | AzureDevCommunityBlog [yyyy [q [yyyy [q]]]]]
 
 # History:
+#  0.5  2019-06-12 Supported date and author before 2019-02-12.
 #  0.4  2019-06-08 Changed output from text to object.
 #  0.3  2019-06-07 Renamed to Get-TechCommunityArticleList.
 #  0.2  2019-05-27 Rewrote Get-BlogInfo.
@@ -23,7 +24,8 @@ function Get-ArticleInfo {
     $long = $l[$script:iSite]
     $short = $s[$script:iSite]
     $tagB = $t[$script:iSite]
-    $url = 'https://techcommunity.microsoft.com/t5/{0}/bg-p/{1}' -f $long, $short
+    $site = 'https://techcommunity.microsoft.com' 
+    $url = '{0}/t5/{1}/bg-p/{2}' -f $site, $long, $short
     $nArticle = 0
     $maxPage = 1
     $stack = New-Object System.Collections.Stack
@@ -37,8 +39,9 @@ function Get-ArticleInfo {
         }
         $buf = Get-WebPageContents ($url + $pg)
         $script:p = 0
-        $tag = 'found'
-        while ($tag) {
+        $eod = $false
+        $tag = 'exists'
+        while ((-not $eod) -and $tag) {
             # link to a post
             $tag = Find-Tag -tagName 'a' -class 'page-link lia-link-navigation lia-custom-event'
             if ($tag) {
@@ -48,6 +51,7 @@ function Get-ArticleInfo {
                 $tag = Find-Tag -tagName 'div' -class 'author-details'
             }
             if ($tag) {
+                $dig = $false
                 $stack.Push($buf)
                 $stack.Push($script:p)
                 $buf = $tag
@@ -69,22 +73,63 @@ function Get-ArticleInfo {
                     $article['month'] = $script:txt.Substring(0, 2)
                     $article['day'] = $script:txt.Substring(3, 2)
                     $ym = [int]($article['year'] + $article['month'])
-                    if (($script:ym0 -le $ym) -and ($ym -le $script:ym1)) {
-                        $article['#'] = ++$nArticle
-                        # article
-                        [PSCustomObject]$article
-                    } elseif ($ym -le $script:ym0) {
-                        $tag = ''
+                    $ymd = [int]($article['year'] + $article['month'] + $article['day'])
+                    if (($short -eq 'SmallBasic') -and ($ymd -eq 20190212)) {
+                        $dig = $true
                     }
                 }
                 $script:p = $stack.Pop()
                 $buf = $stack.Pop()
+                if ($dig) {
+                    # dig author and date
+                    $tag = Find-Tag -tagName 'div' -class 'blog-article-teaser-wrapper'
+                    $pd = $script:txt.IndexOf('MSDN on')
+                    $pa = $script:txt.IndexOf('Authored')
+                    if ((0 -le $pd) -and (0 -le $pa)) {
+                        $date = Get-Date $script:txt.SubString($pd + 8, $pa - ($pd + 9))
+                        $au = $script:txt.SubString($pa + 12, 19)
+                    } else {
+                        $stack.Push($buf)
+                        $stack.Push($script:p)
+                        $buf = Get-WebPageContents ($site + $article['url'])
+                        $script:p = 0
+                        # dig further author and date
+                        $tag = Find-Tag -tagName 'STRONG'
+                        $pd = $script:txt.IndexOf('MSDN on')
+                        $date = Get-Date $script:txt.SubString($pd + 8)
+                        $tag = Find-Tag -tagName 'I'
+                        $pa = $script:txt.IndexOf('Authored')
+                        $au = $script:txt.SubString($pa + 12)
+                        $script:p = $stack.Pop()
+                        $buf = $stack.Pop()
+                    }
+                    $article['year'] = [string]($date.year)
+                    $article['month'] = '{0:00}' -f $date.month
+                    $article['day'] = '{0:00}' -f $date.day
+                    $ym = [int]($article['year'] + $article['month'])
+                    $article['by'] = $au
+                    foreach ($key in $auth.keys) {
+                        if ($au.StartsWith($key)) {
+                            $article['by'] = $auth[$key]
+                            break
+                        }
+                    }
+                }
+                if ($tag -and ($script:ym0 -le $ym) -and ($ym -le $script:ym1)) {
+                    $article['n'] = ++$nArticle
+                    # article
+                    [PSCustomObject]$article
+                } elseif ($ym -lt $script:ym0) {
+                    $eod = $true
+                }
             }
         }
-        # next page
-        $tag = Find-Tag -tagName 'a' -class ('lia-link-navigation lia-js-data-pageNum-{0} lia-custom-event' -f ($page + 1))
-        if ($tag) {
-            $maxPage = $page + 1
+        if (-not $eod) {
+            # next page
+            $tag = Find-Tag -tagName 'a' -class ('lia-link-navigation lia-js-data-pageNum-{0} lia-custom-event' -f ($page + 1))
+            if ($tag) {
+                $maxPage = $page + 1
+            }
         }
     }
 }
@@ -96,12 +141,29 @@ function Initialize-SiteTable {
     $script:t = @()
     # Small Basic Blog
     $auth = @{}
-    $auth['Ed Price'] = 'Ed'
     $auth['Ed Price - MSFT'] = 'Ed'
-    $auth['litdev'] = 'LitDev'
-    $auth['Qazwsxedc Qazwsxedc'] = 'Noar Buscher'
-    $auth['NonkiTakahashi']  = 'Nonki'
+    $auth['Ed Price'] = 'Ed'
+    $auth['Ed'] = 'Ed'
+    $auth['Jadamelio'] = 'jadamelio'
+    $auth['Jibba Jabba'] = 'Rick Murphy'
+    $auth['Katelyn Schoedl'] = 'Katelyn Schoedl'
+    $auth['LitDev'] = 'LitDev'
+    $auth['Liz Bander'] = 'Liz Bander'
+    $auth['Michael'] = 'Michael Scherotter'
+    $auth['Noah Buscher'] = 'Noah Buscher'
     $auth['Nonki Takahashi']  = 'Nonki'
+    $auth['NonkiTakahashi']  = 'Nonki'
+    $auth['Nonki']  = 'Nonki'
+    $auth['Qazwsxedc Qazwsxedc'] = 'Noah Buscher'
+    $auth['Ray Fast'] = 'Ray Fast'
+    $auth['Rick Murphy'] = 'Rick Murphy'
+    $auth['Sandra Aldana - MSFT'] = 'Sandra Aldana'
+    $auth['Sandra Aldana'] = 'Sandra Aldana'
+    $auth['Synergist'] = 'Synergist'
+    $auth['Vijaye Raji'] = 'Vijaye Raji'
+    $auth['Yan Grenier - MTFC'] = 'Yan Grenier'
+    $auth['Yan Grenier'] = 'Yan Greier'
+    $auth['Yan'] = 'Yan Grenier'
     $script:s += 'SmallBasic'
     $script:l += 'Small-Basic-Blog'
     $script:a += $auth
@@ -119,24 +181,10 @@ function Initialize-SiteTable {
     # /t5/tag/Vijaye%20Raji/tg-p/board-id/SmallBasic
 }
 
-function Initialize-Cal {
-    # Calender | Initialize days of month
-    $script:dom = @(31, 28, 31, 30, 30, 31, 30, 31, 31, 30, 31, 30, 31)
-    $script:name = @('January', 'February', 'March', 'April', 'May', 'June', `
-        'July', 'August', 'September', 'October', 'November', 'December')
-    $script:week = @('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')
-    $script:sp = @{}
-    for ($n = 8; $n -le 20; $n += 4) {
-        $script:sp[$n] = ' ' * $n
-    }
-}
-
 function Test-Arg ($myArgs) {
     # param $s - short name array
     # param $myArgs - arguments array
     # return $script:site - site short name
-    # return $script:yq0 - year and quoter from
-    # return $script:yq1 - year and quoter to
     # return $script:ym0 - year and month from
     # return $script:ym1 - year and month to
     # return $script:msg - error message
@@ -162,71 +210,60 @@ function Test-Arg ($myArgs) {
         $today = Get-Date
         # check year from
         $script:y0 = $myArgs[1]
-        if (-not $y0) {
+        if (-not $script:y0) {
             $script:y0 = $today.Year
+            $script:y0 = 2008
         }
-        if ($y0 -lt 1) {
-            $script:msg = 'Illeagal from year (' + $y0 + ')'
+        if ($script:y0 -lt 1) {
+            $script:msg = 'Illeagal from year (' + $script:y0 + ')'
             $script:err = $true
         }
     }
     if (-not $err) {
         # check year to
         $script:y1 = $myArgs[3]
-        if (-not $y1) {
+        if (-not $script:y1) {
             $script:y1 = $today.Year
         }
-        if ($y1 -lt 1) {
-            $script:msg = 'Illeagal to year (' + $y1 + ')'
+        if ($script:y1 -lt 1) {
+            $script:msg = 'Illeagal to year (' + $script:y1 + ')'
             $script:err = $true
         }
     }
     if (-not $err) {
         # check quoter from
         $script:q0 = $myArgs[2]
-        if (-not $q0) {
+        if (-not $script:q0) {
             $script:q0 = 1
         }
-        if (($q0 -lt 1) -or (4 -lt $q0)) {
-            $script:msg = '"Illeagal from quoter (' + $q0 + ')'
+        if (($script:q0 -lt 1) -or (4 -lt $script:q0)) {
+            $script:msg = '"Illeagal from quoter (' + $script:q0 + ')'
             $script:err = $true
         }
     }
     if (-not $err) {
         # check quoter to
         $script:q1 = $myArgs[4]
-        if (-not $q1) {
+        if (-not $script:q1) {
             $script:q1 = 4
         }
-        if (($q1 -lt 1) -or (4 -lt $q1)) {
-            $script:msg = '"Illeagal from quoter (' + $q1 + ')'
+        if (($script:q1 -lt 1) -or (4 -lt $script:q1)) {
+            $script:msg = '"Illeagal from quoter (' + $script:q1 + ')'
             $script:err = $true
         }
     }
     if (-not $err) {
-        $script:m0 = ($q0 - 1) * 3 + 1
-        $script:m1 = ($q1 - 1) * 3 + 3
-        if (9 -lt $m0) {
-            $script:ym0 = [string]$y0 + [string]$m0
-        } else {
-            $script:ym0 = [string]$y0 + '0' + [string]$m0
-        }
-        if (9 -lt $m1) {
-            $script:ym1 = [string]$y1 + [string]$m1
-        } else {
-            $script:ym1 = [string]$y1 + '0' + [string]$m1
-        }
+        $script:m0 = ($script:q0 - 1) * 3 + 1
+        $script:m1 = ($script:q1 - 1) * 3 + 3
+        $script:ym0 = $script:y0 * 100 + $script:m0
+        $script:ym1 = $script:y1 * 100 + $script:m1
     }
 }
 
 Initialize-SiteTable
-"$($args[0]) $($args[1]) $($args[2]) $($args[3]) $($args[4])"
 Test-Arg $args
 if ($err) {
     Write-Host $msg
     return
 }
-"$script:y0 $script:q0 $script:m0 $script:ym0"
-"$script:y1 $script:q1 $script:m1 $script:ym1"
-Initialize-Cal
 Get-ArticleInfo
