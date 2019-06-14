@@ -1,220 +1,190 @@
-﻿# Get-Calendar.ps1 - Get HTML Calendar from Microsoft Tech Community Blog
-# Version 0.3
+﻿# Get-Calendar.ps1 - Get HTML Calendar from Article Object
+# Version 0.4
 # Copyright © 2019 Nonki Takahashi.  The MIT License.
 
 # Usage:
-# .\Get-TechCommunityArticleList | .\Get-Calendar
+# .\Get-Calendar -InputObject <PSObject[]>
 
 # History:
+#  0.4  2019-06-14 Changed input from web to article object.
 #  0.3  2019-06-07 Changed comments.
 #  0.2  2019-05-27 Rewrote Get-BlogInfo.
 #  0.1a 2019-05-26 Created.
 
-# dot source
-. ($PSScriptRoot + '\NetworkLib.ps1')
+[CmdletBinding()]
+param (
+[parameter(ValueFromPipeline = $true)]
+[PSObject[]]$InputObject
+)
 
-function Get-BlogInfo {
-    # param $iBlog - index of blog information arrays
-    # param $script:ym0 - year and month from
-    # param $script:ym1 - year and month to
-    # return $script:blog - blog post array
-    $auth = $a[$iBlog]
-    $long = $l[$iBlog]
-    $blog = $b[$iBlog]
-    $tagB = $t[$iBlog]
-    $url = 'https://techcommunity.microsoft.com/t5/{0}/bg-p/{1}' -f $long, $blog
-    $script:blog = @{}
-    $nArticle = 0
-    $maxPage = 1
-    $stack = New-Object System.Collections.Stack
-    for ($page = 1; $page -le $maxPage; $page++) {
-        $post = @{}
-        # get web page contents
-        $url + '/page/' + $page
-        $buf = Get-WebPageContents ($url + '/page/' + $page)
-        $script:p = 0
-        $tag = 'found'
-        while ($tag) {
-            # link to a post
-            $tag = Find-Tag -tagName 'a' -class 'page-link lia-link-navigation lia-custom-event'
-            if ($tag) {
-                $post['url'] = $script:attr['href']
-                $post['title'] = $script:txt.Trim()
-                # author and date
-                $tag = Find-Tag -tagName 'div' -class 'author-details'
-            }
-            if ($tag) {
-                $stack.Push($buf)
-                $stack.Push($script:p)
-                $buf = $tag
-                $script:p = 0
-                $tag = Find-Tag -tagName 'a'
-                if ($tag) {
-                    $post['by'] = $script:txt
-                    $tag = Find-Tag -tagName 'span' 
-                }
-                if ($tag) {
-                    $tag = Find-Tag -tagName 'span' 
-                }
-                if ($tag) {
-                    $post['date'] = $script:txt.Substring(0, 10) 
-                    $post['#'] = ++$nArticle
-                    $script:blog += @{$nArticle = $post}
-                    # blog hash
-                    '$post[''#''] = ''{0}''' -f $post['#']
-                    '$post[''title''] = ''{0}''' -f $post['title']
-                    '$post[''url''] = ''{0}''' -f $post['url']
-                    '$post[''by''] = ''{0}''' -f $post['by']
-                    '$post[''date''] = ''{0}''' -f $post['date']
-                }
-                $script:p = $stack.Pop()
-                $buf = $stack.Pop()
-            }
-        }
-        # next page
-        $tag = Find-Tag -tagName 'a' -class ('lia-link-navigation lia-js-data-pageNum-{0} lia-custom-event' -f ($page + 1))
-        if ($tag) {
-            $maxPage = $page + 1
-        }
-    }
-    # /t5/tag/Vijaye%20Raji/tg-p/board-id/SmallBasic
-}
-
-function Initialize-BlogTable {
-    $script:b = @()
-    $script:l = @()
-    $script:a = @()
-    $script:t = @()
-    # Small Basic Blog
-    $auth = @{}
-    $auth['Ed Price - MSFT'] = 'Ed'
-    $auth['litdev'] = 'LitDev'
-    $auth['Qazwsxedc Qazwsxedc'] = 'Noar Buscher'
-    $auth['Nonki Takahashi']  = 'Nonki'
-    $script:b += 'SmallBasic'
-    $script:l += 'Small-Basic-Blog'
-    $script:a += $auth
-    $script:t += ''
-    # Education Blog
-    $script:b += 'EducationBlog'
-    $script:l += 'Edication-Blog'
-    $script:a += @{}
-    $script:t += ''
-    # Azure Development Community Blog
-    $script:b += 'AzureDevCommunityBlog'
-    $script:l += 'Azure-Developer-Community-Blog'
-    $script:a += @{}
-    $script:t += ''
-}
-
-function Initialize-Cal {
-    # Calender | Initialize days of month
-    $script:dom = @(31, 28, 31, 30, 30, 31, 30, 31, 31, 30, 31, 30, 31)
-    $script:name = @('January', 'February', 'March', 'April', 'May', 'June', `
-        'July', 'August', 'September', 'October', 'November', 'December')
-    $script:week = @('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')
-    $script:sp = @{}
+begin {
+    # days of month
+    $dom = @(31, 28, 31, 30, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+    $week = @('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')
+    # column width [pt] for dates
+    $c1w = 58.8
+    # column width [pt] for days of week
+    $cw = @{1=44.35;2=48.3;3=61.05;4=46.8;5=37.05;6=49.8;0=40.8}
+    $sp = @{}
     for ($n = 8; $n -le 20; $n += 4) {
-        $script:sp[$n] = ' ' * $n
+        $sp[$n] = ' ' * $n
     }
+    $date0 = Get-Date
+    $date1 = Get-Date ('{0:0000}-{1:00}-{2:00}' -f 1900,1,1)
+    $article = @()
 }
 
-function Test-Arg {
-    # return $script:yq0 - year and quoter from
-    # return $script:yq1 - year and quoter to
-    # return $script:ym0 - year and month from
-    # return $script:ym1 - year and month to
-    # return $script:msg - error message
-    # return $script:err - $true if error
-    # return $script:iBlog - blog index
-    $script:err = $false
-    # check blog
-    if (-not $blog) {
-        $blog = 'SmallBasic'
-    }
-    for ($i = 0; $i -lt $b.Length; $i++) {
-        if ($blog -eq $b[$i]) {
-            break
+process {
+    foreach ($ar in $InputObject) {
+        $article += $ar
+        $date = Get-Date -Year $ar.year -Month $ar.month -Day $ar.day
+        if ($date -lt $date0) {
+            $date0 = $date
         }
-    }
-    if ($b.Length -le $i) {
-        $script:msg = 'Usage: .\Get-Calendar {SmallBasic | EducationBlog | AzureDevCommunityBlog} [yyyy [q [yyyy [q]]]]'
-        $script:err = $true
-    }
-    $script:iBlog = $i
-    if (-not $err) {
-        $today = Get-Date
-        # check year from
-        $script:y0 = $script:args[1]
-        if (-not $y0) {
-            $script:y0 = $today.Year
-        }
-        if ($y0 -lt 1) {
-            $script:msg = 'Illeagal from year (' + $y0 + ')'
-            $script:err = $true
-        }
-    }
-    if (-not $err) {
-        # check year to
-        $script:y1 = $script:args[3]
-        if (-not $y1) {
-            $script:y1 = $today.Year
-        }
-        if ($y1 -lt 1) {
-            $script:msg = 'Illeagal to year (' + $y1 + ')'
-            $script:err = $true
-        }
-    }
-    if (-not $err) {
-        # check quoter from
-        $script:q0 = $script:args[2]
-        if (-not $q0) {
-            $script:q0 = 1
-        }
-        if (($q0 -lt 1) -or (4 -lt $q0)) {
-            $script:msg = '"Illeagal from quoter (' + $q0 + ')'
-            $script:err = $true
-        }
-    }
-    if (-not $err) {
-        # check quoter to
-        $script:q1 = $script:args[4]
-        if (-not $q1) {
-            $script:q1 = 4
-        }
-        if (($q1 -lt 1) -or (4 -lt $q1)) {
-            $script:msg = '"Illeagal from quoter (' + $q1 + ')'
-            $script:err = $true
-        }
-    }
-    if (-not $err) {
-        $script:m0 = ($q0 - 1) * 3 + 1
-        $script:m1 = ($q1 - 1) * 3 + 3
-        if (9 -lt $m0) {
-            $script:ym0 = [string]$y0 + [string]$m0
-        } else {
-            $script:ym0 = [string]$y0 + '0' + [string]$m0
-        }
-        if (9 -lt $m1) {
-            $script:ym1 = [string]$y1 + [string]$m1
-        } else {
-            $script:ym1 = [string]$y1 + '0' + [string]$m1
+        if ($date1 -lt $date) {
+            $date1 = $date
         }
     }
 }
 
-Initialize-BlogTable
-$blog = $args[0]
-Test-Arg
-$url
-if ($err) {
-    Write-Host $msg
-    return
+end {
+    $root = 'http://techcommunity.microsoft.com'
+    $y0 = $date0.Year
+    $y1 = $date1.Year
+    $q0 = [int](($date0.Month - 1) / 3) + 1
+    $q1 = [int](($date1.Month - 1) / 3) + 1
+    for ($year = $y1; $y0 -le $year; $year--) {
+        # days of month
+        If ((($year % 4) -eq 0) -and ((($year % 100) -ne 0) -or (($year % 400) -eq 0))) {
+            $dom[2 - 1] = 29
+        } Else {
+            $dom[2 - 1] = 28
+        }
+        # number of leap year
+        $nol = [int](($year - 1) / 4) - [int](($year - 1) / 100) + [int](($year - 1) / 400)
+        # week of year
+        $woy = ($year + $nol) % 7
+        if ($year -eq $y0) {
+            $_q0 = $q0
+        } else {
+            $_q0 = 1
+        }
+        if ($year -eq $y1) {
+            $_q1 = $q1
+        } else {
+            $_q1 = 4
+        }
+        for ($quoter = $_q1; $_q0 -le $quoter; $quoter--) {
+            $buf = ''
+            # header
+            $yy = ([string]$year).Substring(2) -replace '0','_'
+            $buf += $sp[8] + '<h1><a name="Q' + $quoter + '_' + $yy
+            $buf += '"></a>Q' + $quoter + ' ' + $year + '</h1>' + "`r`n"
+            $buf += $sp[8] + '<p>Move mouse on an author to show the title '
+            $buf += 'of the post.</p>' + "`r`n"
+            $buf += $sp[8] + '<table width="95%"'
+            $buf += ' line-height: 18.83px; margin-left: 1px;'
+            $buf += ' border-collapse: collapse; border="0"'
+            $buf += ' cellspacing="0"'
+            $buf += ' cellpadding="0">' + "`r`n"
+            $buf += $sp[12] + '<tbody>' + "`r`n"
+            $buf += $sp[16] + '<tr>' + "`r`n"
+            $buf += $sp[20] + '<td valign="top"'
+            $buf += ' style="padding: 0in 5.4pt; border: 1pt solid'
+            $buf += ' windowtext; width: ' + $c1w + 'pt; background-color:'
+            $buf += ' silver;">' + "`r`n"
+            $buf += $sp[20] + '<strong>Dates:</strong><'
+            $buf += '/td>' + "`r`n"
+            for ($i = 1; $i -le 7; $i++) {
+                $buf += $sp[20] + '<td valign="top"'
+                $buf += ' style="border-color: windowtext windowtext'
+                $buf += ' windowtext silver; padding: 0in 5.4pt; width:'
+                $buf += ' ' + $cw[$i % 7] + 'pt;'
+                $buf += ' border-top-width: 1pt; border-right-width: 1pt;'
+                $buf += ' border-bottom-width: 1pt; border-top-style: solid;'
+                $buf += ' border-right-style: solid; border-bottom-style:'
+                $buf += ' solid; background-color: silver;">' + "`r`n"
+                $buf += $sp[20] + '<strong>' + $week[$i % 7]
+                $buf += '</strong></td>' + "`r`n"
+            }
+            $buf += $sp[16] + '</tr>' + "`r`n"
+            $m0 = ($quoter - 1) * 3 + 1
+            $m1 = $m0 + 2
+            $doy = 0  # days of year
+            $nom = 1  # number of month
+            $iArticle = $article.Length - 1
+            for ($m = $m0; $m -le $m1; $m++) {
+                while ($nom -lt $m) {
+                    $doy = $doy + $dom[$nom - 1]
+                    $nom++
+                }
+                $w = ($doy + $woy) % 7
+                $d1 = ((8 - $w) % 7) + 1
+                for ($day = $d1; $day -le $dom[$m - 1]; $day += 7) {
+                    $m2 = $m
+                    $day2 = $day + 6
+                    if ($dom[$m - 1] -lt $day2) {
+                        $m2 = $m + 1
+                        if (12 -lt $m2) {
+                            $m2 = 1
+                        }
+                        $day2 -= $dom[$m - 1]
+                    }
+                    $buf += $sp[16] + '<tr>' + "`r`n"
+                    $buf += $sp[20] + '<td valign="top"'
+                    $buf += ' style="border-color: silver windowtext'
+                    $buf += ' windowtext; padding: 0in 5.4pt; width: ' + $c1w + 'pt;'
+                    $buf += ' border-right-width: 1pt; border-bottom-width: 1pt;'
+                    $buf += ' border-left-width: 1pt; border-right-style: solid;'
+                    $buf += ' border-bottom-style: solid; border-left-style:'
+                    $buf += ' solid;">' + "`r`n"
+                    $buf += $sp[20] + $m + '/' + $day + ' - ' + $m2 + '/' + $day2
+                    $buf += '</td>' + "`r`n"
+                    $d = $day
+                    $_m = $m
+                    for ($i = 1; $i -le 7; $i++) {
+                        $buf += $sp[20] + '<td valign="top"'
+                        $buf += ' style="border-color: silver windowtext'
+                        $buf += ' windowtext silver; padding: 0in 5.4pt; width:'
+                        $buf += ' ' + $cw[$i % 7] + 'pt;'
+                        $buf += ' border-right-width: 1pt; border-bottom-width: 1pt;'
+                        $buf += ' border-right-style: solid; border-bottom-style:'
+                        $post = ''
+                        $_post = $article[$iArticle]
+                        if ([int]($_post.year + $_post.month + $_post.day) -le ($year * 10000 + $m * 100 + $d)) {
+                            while ((0 -lt $iArticle) -and ([int]($_post.year + $_post.month + $_post.day) -lt ($year * 10000 + $m * 100 + $d))) {
+                                $iArticle--
+                                $_post = $article[$iArticle]
+                            }
+                            if (([int]$_post.year -eq $year) -and ([int]$_post.month -eq $m) -and ([int]$_post.day -eq $d)) {
+                                $post = $_post
+                            }
+                        }
+                        if (-not $post) {
+                            $buf += ' solid;">' + "`r`n"
+                            $buf += $sp[20] + '&nbsp;</td>' + "`r`n"
+                        } else {
+                            $buf += ' solid;"' + "`r`n"
+                            $buf += $sp[20] + 'title="' + $post.title
+                            $buf += '">' + "`r`n"
+                            $buf += $sp[20] + '<a href="' + $root + $post.url
+                            $buf += '">' + $post.by + '</a></td>' + "`r`n"
+                        }
+                        $d++
+                        if ($dom[$m - 1] -lt $d) {
+                            $d = 1
+                            $m++
+                        }
+                    }
+                    $m = $_m
+                    $buf += $sp[16] + '</tr>' + "`r`n"
+                }
+            }
+            # footer
+            $buf += $sp[12] + '</tbody>' + "`r`n"
+            $buf += $sp[8] + '</table>' + "`r`n"
+            $buf += $sp[8] + '<br>' + "`r`n"
+            $buf
+        }
+    }
 }
-"$y0 $q0 $m0"
-"$y1 $q1 $m1"
-Initialize-Cal
-$sp[8] + '8'
-$sp[12] + '12'
-$sp[16] + '16'
-Get-BlogInfo
