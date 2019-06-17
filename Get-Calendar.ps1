@@ -1,11 +1,12 @@
 ﻿# Get-Calendar.ps1 - Get HTML Calendar from Article Object
-# Version 0.4
+# Version 0.5
 # Copyright © 2019 Nonki Takahashi.  The MIT License.
 
 # Usage:
 # .\Get-Calendar -InputObject <PSObject[]>
 
 # History:
+#  0.5  2019-06-15 Changed indent.
 #  0.4  2019-06-14 Changed input from web to article object.
 #  0.3  2019-06-07 Changed comments.
 #  0.2  2019-05-27 Rewrote Get-BlogInfo.
@@ -30,7 +31,7 @@ begin {
         $sp[$n] = ' ' * $n
     }
     $date0 = Get-Date
-    $date1 = Get-Date ('{0:0000}-{1:00}-{2:00}' -f 1900,1,1)
+    $date1 = Get-Date '1900-01-01'
     $article = @()
 }
 
@@ -78,25 +79,25 @@ end {
             $buf = ''
             # header
             $yy = ([string]$year).Substring(2) -replace '0','_'
-            $buf += $sp[8] + '<h1><a name="Q' + $quoter + '_' + $yy
-            $buf += '"></a>Q' + $quoter + ' ' + $year + '</h1>' + "`r`n"
-            $buf += $sp[8] + '<p>Move mouse on an author to show the title '
+            $buf += '<h1><a name="Q' + $quoter + '_' + $yy + '">'
+            $buf += '</a>Q' + $quoter + ' ' + $year + '</h1>' + "`r`n"
+            $buf += '<p>Move mouse on an author to show the title '
             $buf += 'of the post.</p>' + "`r`n"
-            $buf += $sp[8] + '<table width="95%"'
+            $buf += '<table width="95%"'
             $buf += ' line-height: 18.83px; margin-left: 1px;'
             $buf += ' border-collapse: collapse; border="0"'
             $buf += ' cellspacing="0"'
             $buf += ' cellpadding="0">' + "`r`n"
-            $buf += $sp[12] + '<tbody>' + "`r`n"
-            $buf += $sp[16] + '<tr>' + "`r`n"
-            $buf += $sp[20] + '<td valign="top"'
+            $buf += $sp[8] + '<tbody>' + "`r`n"
+            $buf += $sp[12] + '<tr>' + "`r`n"
+            $buf += $sp[16] + '<td valign="top"'
             $buf += ' style="padding: 0in 5.4pt; border: 1pt solid'
             $buf += ' windowtext; width: ' + $c1w + 'pt; background-color:'
             $buf += ' silver;">' + "`r`n"
             $buf += $sp[20] + '<strong>Dates:</strong><'
             $buf += '/td>' + "`r`n"
             for ($i = 1; $i -le 7; $i++) {
-                $buf += $sp[20] + '<td valign="top"'
+                $buf += $sp[16] + '<td valign="top"'
                 $buf += ' style="border-color: windowtext windowtext'
                 $buf += ' windowtext silver; padding: 0in 5.4pt; width:'
                 $buf += ' ' + $cw[$i % 7] + 'pt;'
@@ -107,7 +108,7 @@ end {
                 $buf += $sp[20] + '<strong>' + $week[$i % 7]
                 $buf += '</strong></td>' + "`r`n"
             }
-            $buf += $sp[16] + '</tr>' + "`r`n"
+            $buf += $sp[12] + '</tr>' + "`r`n"
             $m0 = ($quoter - 1) * 3 + 1
             $m1 = $m0 + 2
             $doy = 0  # days of year
@@ -130,8 +131,8 @@ end {
                         }
                         $day2 -= $dom[$m - 1]
                     }
-                    $buf += $sp[16] + '<tr>' + "`r`n"
-                    $buf += $sp[20] + '<td valign="top"'
+                    $buf += $sp[12] + '<tr>' + "`r`n"
+                    $buf += $sp[16] + '<td valign="top"'
                     $buf += ' style="border-color: silver windowtext'
                     $buf += ' windowtext; padding: 0in 5.4pt; width: ' + $c1w + 'pt;'
                     $buf += ' border-right-width: 1pt; border-bottom-width: 1pt;'
@@ -143,7 +144,7 @@ end {
                     $d = $day
                     $_m = $m
                     for ($i = 1; $i -le 7; $i++) {
-                        $buf += $sp[20] + '<td valign="top"'
+                        $buf += $sp[16] + '<td valign="top"'
                         $buf += ' style="border-color: silver windowtext'
                         $buf += ' windowtext silver; padding: 0in 5.4pt; width:'
                         $buf += ' ' + $cw[$i % 7] + 'pt;'
@@ -177,13 +178,13 @@ end {
                         }
                     }
                     $m = $_m
-                    $buf += $sp[16] + '</tr>' + "`r`n"
+                    $buf += $sp[12] + '</tr>' + "`r`n"
                 }
             }
             # footer
-            $buf += $sp[12] + '</tbody>' + "`r`n"
-            $buf += $sp[8] + '</table>' + "`r`n"
-            $buf += $sp[8] + '<br>' + "`r`n"
+            $buf += $sp[8] + '</tbody>' + "`r`n"
+            $buf += '</table>' + "`r`n"
+            $buf += '<br>' + "`r`n"
             $buf
         }
     }
