@@ -1,5 +1,5 @@
 # Convert-BlogUrl.ps1 - Convert Blog URL
-# Version 0.3
+# Version 0.31
 # Copyright © 2019 Nonki Takahashi.  The MIT License.
 
 function Convert-Url ($in) {
@@ -24,9 +24,11 @@ function Convert-Url ($in) {
 if ($args.Length -lt 2) {
     Write-Host 'Usage: PS> .\Convert-BlogUrl <Old> <New>'
     exit
+} else {
+    $oldFile = $args[0]
+    $newFile = $args[1]
 }
-$oldFile = $args[0]
-$newFile = $args[1]
+
 # initialize variables
 $oldPath = 'https://blogs.msdn.microsoft.com/smallbasic/'
 $newPath = 'https://techcommunity.microsoft.com/t5/Small-Basic-Blog/'
@@ -37,7 +39,7 @@ $buf = Get-Content $oldFile -Encoding UTF8
 $out = @()
 for ($i = 0; $i -lt $buf.Length; $i++) {
     if (($i % 1000) -eq 0) {
-        $i
+        'line {0}' -f $i
     }
     $out += (Convert-Url $buf[$i])
 }
