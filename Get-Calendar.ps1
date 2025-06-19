@@ -1,11 +1,12 @@
 ﻿# Get-Calendar.ps1 - Get HTML Calendar from Article Object
-# Version 0.5
-# Copyright © 2019 Nonki Takahashi.  The MIT License.
+# Version 0.6
+# Copyright © 2019-2020 Nonki Takahashi.  The MIT License.
 
 # Usage:
 # .\Get-Calendar -InputObject <PSObject[]>
 
 # History:
+#  0.6  2020-02-22 Bug fixed for the first day of a week. 
 #  0.5  2019-06-15 Changed indent.
 #  0.4  2019-06-14 Changed input from web to article object.
 #  0.3  2019-06-07 Changed comments.
@@ -64,7 +65,7 @@ end {
         # number of leap year
         $nol = [int](($year - 1) / 4) - [int](($year - 1) / 100) + [int](($year - 1) / 400)
         # week of year
-        $woy = ($year + $nol) % 7
+        $woy = ($year + $nol) % 7 - 1
         if ($year -eq $y0) {
             $_q0 = $q0
         } else {
@@ -109,19 +110,20 @@ end {
                 $buf += '</strong></td>' + "`r`n"
             }
             $buf += $sp[12] + '</tr>' + "`r`n"
-            $m0 = ($quoter - 1) * 3 + 1
-            $m1 = $m0 + 2
-            $doy = 0  # days of year
-            $nom = 1  # number of month
+            $m0 = ($quoter - 1) * 3 + 1 # first month of quoter
+            $m1 = $m0 + 2               # last month of quoter
+            $doy = 0                    # days of year
+            $nom = 1                    # number of month
             $iArticle = $article.Length - 1
             for ($m = $m0; $m -le $m1; $m++) {
                 while ($nom -lt $m) {
                     $doy = $doy + $dom[$nom - 1]
                     $nom++
                 }
-                $w = ($doy + $woy) % 7
-                $d1 = ((8 - $w) % 7) + 1
+                $w = ($doy + $woy) % 7      # day of week
+                $d1 = ((8 - $w) % 7) + 1    # first monday
                 for ($day = $d1; $day -le $dom[$m - 1]; $day += 7) {
+                    # Dates: $m $day - $m2 $day2
                     $m2 = $m
                     $day2 = $day + 6
                     if ($dom[$m - 1] -lt $day2) {
@@ -143,6 +145,7 @@ end {
                     $buf += '</td>' + "`r`n"
                     $d = $day
                     $_m = $m
+                    # from Monday to Sunday
                     for ($i = 1; $i -le 7; $i++) {
                         $buf += $sp[16] + '<td valign="top"'
                         $buf += ' style="border-color: silver windowtext'
@@ -151,13 +154,18 @@ end {
                         $buf += ' border-right-width: 1pt; border-bottom-width: 1pt;'
                         $buf += ' border-right-style: solid; border-bottom-style:'
                         $post = ''
+                        # check oldest article object
                         $_post = $article[$iArticle]
                         if ([int]($_post.year + $_post.month + $_post.day) -le ($year * 10000 + $m * 100 + $d)) {
+                            # the article date is older than or equal to the date to output
                             while ((0 -lt $iArticle) -and ([int]($_post.year + $_post.month + $_post.day) -lt ($year * 10000 + $m * 100 + $d))) {
+                                # get newest article to output 
                                 $iArticle--
                                 $_post = $article[$iArticle]
                             }
                             if (([int]$_post.year -eq $year) -and ([int]$_post.month -eq $m) -and ([int]$_post.day -eq $d)) {
+                                # current article is equal to the date to output
+                                # set the article object to $post
                                 $post = $_post
                             }
                         }
