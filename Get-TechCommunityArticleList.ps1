@@ -1,11 +1,12 @@
 ﻿# Get-TechCommunityArticleList.ps1 - Get Article List from Microsoft Tech Community Blog
-# Version 0.5
-# Copyright © 2019 Nonki Takahashi.  The MIT License.
+# Version 0.6
+# Copyright © 2019-2020 Nonki Takahashi.  The MIT License.
 
 # Usage:
-# .\Get-TechCommunityArticleList [SmallBasic | EducationBlog | AzureDevCommunityBlog [yyyy [q [yyyy [q]]]]]
+# .\Get-TechCommunityArticleList [SmallBasic | WikiNinjasBlog | AzureDevCommunityBlog [yyyy [q [yyyy [q]]]]]
 
 # History:
+#  0.6  2020-02-21 Supported WikiNinjasBlog instead of EducationBlog.
 #  0.5  2019-06-12 Supported date and author before 2019-02-12.
 #  0.4  2019-06-08 Changed output from text to object.
 #  0.3  2019-06-07 Renamed to Get-TechCommunityArticleList.
@@ -20,10 +21,11 @@ function Get-ArticleInfo {
     # param $script:ym0 - year and month from
     # param $script:ym1 - year and month to
     # return article object array
-    $auth = $a[$script:iSite]
-    $long = $l[$script:iSite]
-    $short = $s[$script:iSite]
-    $tagB = $t[$script:iSite]
+    $auth = $a[$iSite]
+    $long = $l[$iSite]
+    $short = $s[$iSite]
+    $tagB = $t[$iSite]
+    $digDate = $d[$iSite]
     $site = 'https://techcommunity.microsoft.com' 
     $url = '{0}/t5/{1}/bg-p/{2}' -f $site, $long, $short
     $nArticle = 0
@@ -74,16 +76,19 @@ function Get-ArticleInfo {
                     $article['day'] = $script:txt.Substring(3, 2)
                     $ym = [int]($article['year'] + $article['month'])
                     $ymd = [int]($article['year'] + $article['month'] + $article['day'])
-                    if (($short -eq 'SmallBasic') -and ($ymd -eq 20190212)) {
+                    if ($ymd -eq $digDate) {
                         $dig = $true
                     }
                 }
                 $script:p = $stack.Pop()
                 $buf = $stack.Pop()
                 if ($dig) {
-                    # dig author and date
+                    # dig date
                     $tag = Find-Tag -tagName 'div' -class 'blog-article-teaser-wrapper'
                     $pd = $script:txt.IndexOf('MSDN on')
+                    If ($pd -eq -1) {
+                        $pd = $script:txt.IndexOf('TECHNET on')
+                    }
                     $pa = $script:txt.IndexOf('Authored')
                     if ((0 -le $pd) -and (0 -le $pa)) {
                         $date = Get-Date $script:txt.SubString($pd + 8, $pa - ($pd + 9))
@@ -96,10 +101,19 @@ function Get-ArticleInfo {
                         # dig further author and date
                         $tag = Find-Tag -tagName 'STRONG'
                         $pd = $script:txt.IndexOf('MSDN on')
-                        $date = Get-Date $script:txt.SubString($pd + 8)
+                        If ($pd -eq -1) {
+                            $pd = $script:txt.IndexOf('TECHNET on')
+                            $date = Get-Date $script:txt.SubString($pd + 11)
+                        } else {
+                            $date = Get-Date $script:txt.SubString($pd + 8)
+                        }
                         $tag = Find-Tag -tagName 'I'
                         $pa = $script:txt.IndexOf('Authored')
-                        $au = $script:txt.SubString($pa + 12)
+                        if (0 -le $pa) {
+                            $au = $script:txt.SubString($pa + 12)
+                        } else {
+                            $au = ''
+                        }
                         $script:p = $stack.Pop()
                         $buf = $stack.Pop()
                     }
@@ -135,10 +149,12 @@ function Get-ArticleInfo {
 }
 
 function Initialize-SiteTable {
-    $script:s = @()
-    $script:l = @()
-    $script:a = @()
-    $script:t = @()
+    $script:s = @() # site
+    $script:l = @() # label
+    $script:a = @() # authors
+    $script:t = @() # tags
+    $script:d = @() # date to dig
+    $script:f = @() # author from dig? 
     # Small Basic Blog
     $auth = @{}
     $auth['Ed Price - MSFT'] = 'Ed'
@@ -165,19 +181,25 @@ function Initialize-SiteTable {
     $auth['Yan Grenier'] = 'Yan Greier'
     $auth['Yan'] = 'Yan Grenier'
     $script:s += 'SmallBasic'
-    $script:l += 'Small-Basic-Blog'
+    $script:l += 'small-basic-blog'
     $script:a += $auth
     $script:t += ''
-    # Education Blog
-    $script:s += 'EducationBlog'
-    $script:l += 'Edication-Blog'
+    $script:d += 20190212
+    $script:f += $true
+    # Wiki Ninjas Blog
+    $script:s += 'WikiNinjasBlog'
+    $script:l += 'wiki-ninjas-blog'
     $script:a += @{}
     $script:t += ''
-    # Azure Development Community Blog
+    $script:d += 20191025
+    $script:f += $false
+    # Azure Developer Community Blog
     $script:s += 'AzureDevCommunityBlog'
-    $script:l += 'Azure-Developer-Community-Blog'
+    $script:l += 'azure-developer-community-blog'
     $script:a += @{}
     $script:t += ''
+    $script:d += 20190213
+    $script:f += $false
     # /t5/tag/Vijaye%20Raji/tg-p/board-id/SmallBasic
 }
 
@@ -202,7 +224,7 @@ function Test-Arg ($myArgs) {
         }
     }
     if ($s.Length -le $i) {
-        $script:msg = 'Usage: .\Get-Calendar [SmallBasic | EducationBlog | AzureDevCommunityBlog [yyyy [q [yyyy [q]]]]]'
+        $script:msg = 'Usage: .\Get-Calendar [SmallBasic | WikiNinjasBlog | AzureDevCommunityBlog [yyyy [q [yyyy [q]]]]]'
         $script:err = $true
     }
     $script:iSite = $i

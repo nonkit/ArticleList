@@ -1,6 +1,6 @@
 # NetworkLib.ps1 - Network Library
-# Version 0.3
-# Copyright © 2019 Nonki Takahashi.  The MIT License.
+# Version 0.4
+# Copyright © 2019-2020 Nonki Takahashi.  The MIT License.
 
 function Convert-Text ($in) {
     # Convert &*; to unicode character
@@ -11,9 +11,7 @@ function Convert-Text ($in) {
         while ($in -and (0 -lt ($c = $in.IndexOf('&'))) `
             -and (0 -lt ($l = ($in.Substring($c)).IndexOf(';')))) {
             $kw = $in.Substring($c + 1, $l - 1)
-            if ($kw.StartsWith('#') -and ($kw.Length -le 4)) {
-                $to = [char][byte]($kw.Substring(1, $kw.Length - 1))
-            } elseif ($kw.StartsWith('#') -and ($kw.Length -le 6)) {
+            if ($kw.StartsWith('#') -and ($kw.Length -le 6)) {
                 $to = [char][int32]($kw.Substring(1, $kw.Length - 1))
             } elseif ($kw -eq 'quot') {
                 $to = '"'
