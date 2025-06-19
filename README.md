@@ -4,7 +4,7 @@
 Blog or Other Article List Generator Series<br>
 using Small Basic and PowerShell
 
-## Challenge of the Month List
+## Challenge of the Month List (retired)
 This is a challenge list generator for Challenge of the Month in Small Basic forum.
 - ChallengeOfTheMonthList.sb
 
@@ -12,7 +12,7 @@ This is a challenge list generator for Challenge of the Month in Small Basic for
 This is an article list generator for Google Blog.
 - GoogleBlogArticleList.sb
 
-## MSDN Blog Article List (will retire)
+## MSDN Blog Article List (retired)
 This is an article list generator for MSDN Blog.
 MSBlogCalendar is a calender generator for Microsoft Blog.
 - MSDNBlogArticleList.sb
@@ -27,8 +27,9 @@ Convert-BlogUrl is Small Basic Blog URL converter from MSDN to Tech Community.
 - Get-Calendar.ps1
 - Convert-BlogUrl.ps1
 
-## Wiki Article List
+## TechNet Wiki Article List (will retire)
 This is an article list generator for TechNet Wiki.
 Convert-VBProj is for Visual Studio to debug graduated program.
 - WikiArticleList.sb
 - Convert-VBProj.ps1
+- Get-TechNetWikiArticleList.ps1

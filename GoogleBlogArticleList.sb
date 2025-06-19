@@ -1,9 +1,9 @@
-' Google Blog Article List 0.4
-' Copyright © 2014-2017 Nonki Takahashi.  The MIT License.
-' Last update 2017-07-17
-' Program ID PLT187-0
+' Google Blog Article List 0.5
+' Copyright © 2014-2025 Nonki Takahashi.  The MIT License.
+' Last update 2025-06-19
+' Program ID PLT187-1
 '
-TextWindow.Title = "Google Blog Article List 0.4"
+TextWindow.Title = "Google Blog Article List 0.5"
 Not = "False=True;True=False;"
 LT = "<"
 site = "http://nonkit.blogspot.jp/"
@@ -96,13 +96,14 @@ While Not[eob]
       eod = "True"
     EndIf
   EndWhile
-  param = "tag=a;class=blog-pager-older-link flat-button ripple;"
+  param = "tag=a;class=blog-pager-older-link;"
   FindTag()
   If tag = "" Then
     eob = "True"
   Else
     GetAttrAndText()
     site = attr["href"]
+    File.AppendContents(stdout, LT + "/ul>")
   EndIf
 EndWhile
 File.AppendContents(stdout, LT + "/ul>")
