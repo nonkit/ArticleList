@@ -1,14 +1,16 @@
-' Google Blog Article List 0.5
+' Google Blog Article List 0.6
 ' Copyright © 2014-2025 Nonki Takahashi.  The MIT License.
-' Last update 2025-06-19
-' Program ID PLT187-1
+' Last update 2025-06-21
+' Program ID PLT187-2
 '
-TextWindow.Title = "Google Blog Article List 0.5"
+TextWindow.Title = "Google Blog Article List 0.6"
 Not = "False=True;True=False;"
 LT = "<"
-site = "http://nonkit.blogspot.jp/"
+site = "https://nonkit.blogspot.jp/"
 eob = "False" ' end of blog
 first = "True"
+classH3 = "tag=h3;class=post-title;"
+nextH3 = "tag=h3;class=post-title entry-title;"
 nArticle = 0
 stdout = Program.Directory + "/list.html"
 File.WriteContents(stdout, LT + "!DOCTYPE html>")
@@ -26,47 +28,31 @@ While Not[eob]
   p = 1
   eod = "False"
   While Not[eod]
-    param = "tag=h2;class=date-header;"
+    param = "tag=time;class=published;"
     FindTag()
-    pH2 = pNotFound
+    pTime = pNotFound
     If tag <> "" Then
-      pH2 = p
-      tagH2 = tag
+      pTime = p
+      GetAttrAndText()
+      date = txt
+      If date <> dateLast Then
+        If dateLast <> "" Then
+          File.AppendContents(stdout, LT + "/ul>")
+        EndIf
+        File.AppendContents(stdout, LT + "p>" + date + LT + "/p>")
+        File.AppendContents(stdout, LT + "ul>")
+        dateLast = date
+      EndIf
     EndIf
-    p = pSave
-    param = "tag=h3;class=post-title entry-title;"
+    param = classH3
     FindTag()
+    If first Then
+      first = "False"
+      classH3 = nextH3
+    EndIf
     pH3 = pNotFound
     If tag <> "" Then
       pH3 = p
-      tagH3 = tag
-    EndIf
-    p = pSave
-    If pH2 < pNotFound And pH3 < pNotFound Then
-      If pH2 < pH3 Then
-        pH3 = pNotFound
-      ElseIf pH3 < pH2 Then
-        pH2 = pNotFound
-      EndIf
-    EndIf
-    If pH2 < pNotFound Then
-      tag = tagH2
-      bufSave = buf
-      p = 1
-      buf = tag
-      param = "tag=span;"
-      FindTag()
-      GetAttrAndText()
-      If first Then
-        first = "False"
-      Else
-        File.AppendContents(stdout, LT + "/ul>")
-      EndIf
-      File.AppendContents(stdout, LT + "p>" + txt + LT + "/p>" + LT + "ul>")
-      buf = bufSave
-      p = pH2
-    ElseIf pH3 < pNotFound Then
-      tag = tagH3
       bufSave = buf
       p = 1
       buf = tag
@@ -80,19 +66,10 @@ While Not[eob]
       param = "tag=time;"
       FindTag()
       GetAttrAndText()
-      date = txt
-      If date <> dateLast Then
-        If dateLast <> "" Then
-          File.AppendContents(stdout, LT + "/ul>")
-        EndIf
-        File.AppendContents(stdout, LT + "p>" + date + LT + "/p>")
-        File.AppendContents(stdout, LT + "ul>")
-        dateLast = date
-      EndIf
       File.AppendContents(stdout, LT + "li>" + LT + "a href='" + href + "'>" + title + LT + "/a>" + LT + "/li>")
       nArticle = nArticle + 1
     EndIf
-    If pH2 = pNotFound And pH3 = pNotFound Then
+    If pTime = pNotFound And pH3 = pNotFound Then
       eod = "True"
     EndIf
   EndWhile
@@ -103,7 +80,6 @@ While Not[eob]
   Else
     GetAttrAndText()
     site = attr["href"]
-    File.AppendContents(stdout, LT + "/ul>")
   EndIf
 EndWhile
 File.AppendContents(stdout, LT + "/ul>")
